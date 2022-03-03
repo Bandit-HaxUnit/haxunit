@@ -12,10 +12,10 @@ Requirements (you can run `haxunit.py` as root to automatically install these, e
 
 Clone repository and automatically install all dependencies:
 ```commandline
-$ git clone https://xxxx
-$ cd xxxx
+$ git clone https://github.com/Bandit-HaxUnit/haxunit
+$ cd haxunit
 $ pip3 install -r requirements.txt
-$ python3 haxunit.py --install-all
+$ python3 main.py --install-all
 ```
 
 ## Usage
