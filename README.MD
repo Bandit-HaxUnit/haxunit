@@ -14,7 +14,6 @@ Clone repository and automatically install all dependencies:
 ```commandline
 $ git clone https://github.com/Bandit-HaxUnit/haxunit
 $ cd haxunit
-$ pip3 install -r requirements.txt
 $ python3 main.py --install-all
 ```
 
@@ -75,3 +74,6 @@ W.I.P. - Preview coming soon!
 
 # Flowchart
 ![Flowchart](/static/flowchart.png)
+
+# Credits
+Huge shoutout to projectdiscovery for all their amazing tools.
