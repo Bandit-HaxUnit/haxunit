@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="static/logo.png" alt="httpx" width="200px"></a>
+  <img src="static/logo.png" alt="haxunit" width="200px"></a>
   <br>
 </h1>
 
