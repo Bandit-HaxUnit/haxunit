@@ -81,29 +81,25 @@ W.I.P. - Preview coming soon!
 
 # Functions
 
-| Function           | Type                            | Description                                                                                           |
-|--------------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
-| check_ip           | Security                        | Check if user IP is from a VPN, Proxy or a VPS to prevent leaking real IP (optional)                  |
-| add_domain_to_db   | DB                              | Add domain name to table in database                                                                  |
-| create_scan_in_db  | DB                              | Create a new scan in database to save results and to use in website                                   |
-| sonar_search       | Subdomain discovery             | Use omnisint (FDNS) to search for other TLD's with same name                                          |
-| c99_subdomains     | Subdomain discovery             | Use c99's API to find subdomains                                                                      |
-| dnscan             | Subdomain discovery             | Use dnscan to find subdomains and recursively brute force subdomains (includes wildcard detection)    |
-| subfinder          | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
-| crtsh              | Subdomain discovery             | Use crt.sh website to find subdomains                                                                 |
-| write_subdomains   | File                            | Write list of subdomains to file                                                                      |
-| naabu              | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
-| gau_unfurl         | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          | 
-| httpx              | Subdomain list validation       | Check all found subdomains if they are active                                                         | 
-| nrich              | Port scan + Subdomain discovery | Faster alternative to active port scanning to naabu                                                   | 
-| sonar_reverse_dns  | Subdomain discovery             | Find subdomains using reverse dns search from omnisint (FDNS)                                         |
-| acunetix           | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
-| nuclei             | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        | 
-| cleanup            | Cleanup                         | Cleaning up of log files and more                                                                     |
+| Function          | Type                            | Description                                                                                           |
+|-------------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
+| sonar_search      | Subdomain discovery             | Use omnisint (FDNS) to search for other TLD's with same name                                          |
+| dnsx_subdomains   | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
+| subfinder         | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
+| gau_unfurl        | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
+ | dnsx_ips          | Get IP addresses                | Use dnsx to fetch A records                                                                           |
+| sonar_reverse_dns | Subdomain discovery             | Find subdomains using reverse dns search from omnisint (FDNS)                                         |
+| nrich             | Port scan + Subdomain discovery | Faster alternative to active port scanning to naabu                                                   | 
+| naabu             | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
+| httpx             | Subdomain list validation       | Check all found subdomains if they are active                                                         |
+| acunetix          | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
+| nuclei            | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        |
 
-
-# Flowchart
-
+# Workflow
+<h1 align="center">
+  <img src="static/workflow.png" alt="workflow" width="200px"></a>
+  <br>
+</h1>
 
 # Credits
 Huge shoutout to https://github.com/projectdiscovery for all their amazing tools.
