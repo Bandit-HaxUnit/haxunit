@@ -19,6 +19,13 @@ If you see unrelated subdomains you can decline and you'll be asked again with o
 
 If you don't want to be asked to add the domains you can use the `-y` parameter.
 
+# To-do
+- Extend naabu portscan with also IP's found after httpx scan
+- Add reverse DNS search for all IP's discovered by HTTPx
+- Replace dnscan with dnsx once they support recursive bruteforcing of subdomains
+- Remove c99 because it's added to subfinder in 2.5.0
+- Add the ability to set API keys
+
 # Installation
 
 

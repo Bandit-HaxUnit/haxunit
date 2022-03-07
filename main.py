@@ -1,14 +1,3 @@
-"""
-To-do:
-- Extend naabu portscan with also IP's found after httpx scan
-- Add reverse DNS search for all IP's discovered by HTTPx
-
-- Replace dnscan with dnsx once they support recursive bruteforcing of subdomains
-- Remove c99 because it's added to subfinder in 2.5.0
-- Add the ability to set API keys
-
-"""
-
 import subprocess
 from os import geteuid
 
