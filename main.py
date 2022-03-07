@@ -66,7 +66,7 @@ class HaxUnit:
         print()
 
         if self.install_all:
-            self.install_all()
+            self.install_all_tools()
             self.print("Init", "All tools are successfully installed - good luck!", Colors.SUCCESS)
             exit()
         elif not self.site:
@@ -387,7 +387,7 @@ class HaxUnit:
         ):
             self.cmd(cmd)
 
-    def install_all(self):
+    def install_all_tools(self):
 
         self.install_nrich()
         # self.install_acunetix()
