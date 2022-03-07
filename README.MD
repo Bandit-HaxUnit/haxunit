@@ -28,6 +28,7 @@ If you don't want to be asked to add the domains you can use the `-y` parameter.
 Requirements
 - `python3` (>=3.8)
 - `go` (>=1.17) 
+- `unzip` (used until I implement `go get` soon to install tools)
 - `docker`
 
 Docker is only required if you install acunetix by uncommenting `self.install_acunetix()`
