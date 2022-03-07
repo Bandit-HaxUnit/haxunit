@@ -161,7 +161,7 @@ class HaxUnit:
         self.write_subdomains()
 
     def nuclei(self) -> None:
-        self.cmd(f"""nuclei -update-templates -l {self.dir_path}/all_subdomains_up.txt
+        self.cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
                         -t templates
                         {"-stats -metrics" if self.verbose else "-silent "} 
                         -o {self.dir_path}/nuclei_result.txt
@@ -387,7 +387,7 @@ class HaxUnit:
         ):
             self.cmd(cmd)
 
-    def _install(self, name, download, file, binary, tar_gz=False):
+    def install(self, name, download, file, binary, tar_gz=False):
         if not exists(f"tools/{name}") or self.update:
             for text, cmd in (
                     (f"Downloading {name}", f"wget {download} --quiet"),
@@ -420,49 +420,49 @@ class HaxUnit:
         # ):
         #     self.cmd(cmd_tool)
 
-        self._install(
+        self.install(
             name="httpx",
             download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.0/httpx_1.2.0_linux_amd64.zip",
             file="httpx_1.2.0_linux_amd64.zip",
             binary="httpx"
         )
 
-        self._install(
+        self.install(
             name="naabu",
             download="https://github.com/projectdiscovery/naabu/releases/download/v2.0.5/naabu_2.0.5_linux_amd64.zip",
             file="naabu_2.0.5_linux_amd64.zip",
             binary="naabu"
         )
 
-        self._install(
+        self.install(
             name="subfinder",
             download="https://github.com/projectdiscovery/subfinder/releases/download/v2.4.9/subfinder_2.4.9_linux_amd64.zip",
             file="subfinder_2.4.9_linux_amd64.zip",
             binary="subfinder"
         )
 
-        self._install(
+        self.install(
             name="nuclei",
             download="https://github.com/projectdiscovery/nuclei/releases/download/v2.6.3/nuclei_2.6.3_linux_amd64.zip",
             file="nuclei_2.6.3_linux_amd64.zip",
             binary="nuclei"
         )
 
-        self._install(
+        self.install(
             name="dnsx",
             download="https://github.com/projectdiscovery/dnsx/releases/download/v1.0.9/dnsx_1.0.9_linux_amd64.zip",
             file="dnsx_1.0.9_linux_amd64.zip",
             binary="dnsx"
         )
 
-        self._install(
+        self.install(
             name="interactsh",
             download="https://github.com/projectdiscovery/interactsh/releases/download/v1.0.1/interactsh-client_1.0.1_Linux_x86_64.zip",
             file="interactsh-client_1.0.1_Linux_x86_64.zip",
             binary="interactsh-client"
         )
 
-        self._install(
+        self.install(
             name="getau",
             download="https://github.com/lc/gau/releases/download/v2.0.9/gau_2.0.9_linux_amd64.tar.gz",
             file="gau_2.0.9_linux_amd64.tar.gz",
@@ -470,7 +470,7 @@ class HaxUnit:
             tar_gz=True
         )
 
-        self._install(
+        self.install(
             name="unfurl",
             download="https://github.com/tomnomnom/unfurl/releases/download/v0.2.0/unfurl-linux-amd64-0.2.0.tgz",
             file="unfurl-linux-amd64-0.2.0.tgz",
