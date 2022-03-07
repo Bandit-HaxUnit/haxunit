@@ -97,7 +97,7 @@ W.I.P. - Preview coming soon!
 
 # Workflow
 <h1 align="center">
-  <img src="static/workflow.png" alt="workflow" width="200px"></a>
+  <img src="static/workflow.png" alt="workflow"></a>
   <br>
 </h1>
 
