@@ -397,12 +397,12 @@ class HaxUnit:
                     ("-", f"touch tools/{name}")
             ):
                 if text and cmd:
-                    self._print("Installer", f"{name} - {text}")
-                    self._cmd(cmd)
+                    self.print("Installer", f"{name} - {text}")
+                    self.cmd(cmd)
 
             if name == "nuclei":
-                self._cmd("nuclei -update-templates -update-directory templates")
-                self._cmd("nuclei --update")
+                self.cmd("nuclei -update-templates -update-directory templates")
+                self.cmd("nuclei --update")
 
     def install_all_tools(self):
 
