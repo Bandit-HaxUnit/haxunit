@@ -258,24 +258,24 @@ class HaxUnit:
                 self.print("Sonar reverse DNS", f"Domain IP: {ip_address}\n")
 
                 reverse_dns_domains = get(f"https://sonar.omnisint.io/reverse/{domain_ip_range if use_whole_range else ip_address}").json()
+                if reverse_dns_domains:
+                    if use_whole_range:
+                        all_domains = []
+                        for ip in reverse_dns_domains:
+                            all_domains.extend(reverse_dns_domains[ip])
+                        reverse_dns_domains = list(set(all_domains))
 
-                if use_whole_range:
-                    all_domains = []
-                    for ip in reverse_dns_domains:
-                        all_domains.extend(reverse_dns_domains[ip])
-                    reverse_dns_domains = list(set(all_domains))
+                    reverse_dns_domains = self.remove_unwanted_domains(reverse_dns_domains)
 
-                reverse_dns_domains = self.remove_unwanted_domains(reverse_dns_domains)
+                    if not self.ask_to_add(reverse_dns_domains):
+                        containing_domain = list(set([_ for _ in reverse_dns_domains if self.domain_name_no_tld in _]))
 
-                if not self.ask_to_add(reverse_dns_domains):
-                    containing_domain = list(set([_ for _ in reverse_dns_domains if self.domain_name_no_tld in _]))
+                        if containing_domain:
+                            print()
+                            for d in containing_domain:
+                                print(d)
 
-                    if containing_domain:
-                        print()
-                        for d in containing_domain:
-                            print(d)
-
-                        self.ask_to_add(containing_domain)
+                            self.ask_to_add(containing_domain)
             except (ConnectionError, TimeoutError):
                 self.print("Sonar reverse DNS", "Sonar reverse dns failed - skipping", Colors.FAIL)
 
