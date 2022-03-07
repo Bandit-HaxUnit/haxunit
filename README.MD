@@ -75,10 +75,6 @@ python3 main.py -d example.com
 
 Results are saved in `scans/example.com/timestamp/` and also a local SQLite database.
 
-
-## Web
-W.I.P. - Preview coming soon!
-
 # Functions
 
 | Function          | Type                            | Description                                                                                           |
