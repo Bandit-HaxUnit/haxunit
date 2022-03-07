@@ -37,7 +37,6 @@ class HaxUnit:
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yes_to_all, update,
                  install_all):
         self.site = site
-        self.domain_name_no_tld = self.site.split(".")[0]
         self.verbose = verbose
         self.quick = True if mode == "quick" else False
         self.python_bin = python_bin
@@ -247,6 +246,8 @@ class HaxUnit:
         dnsx_ips = self.read("dnsx_ips.txt")
 
         use_whole_range = self.ask("Do you want to scan /32 range for all IP addresses (x.x.x.0/32)? ")
+
+        self.domain_name_no_tld = self.site.split(".")[0]
 
         for ip_address in dnsx_ips:
             try:
