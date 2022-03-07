@@ -34,7 +34,7 @@ Clone repository, install python requirements and automatically install all tool
 ```commandline
 $ git clone https://github.com/Bandit-HaxUnit/haxunit
 $ cd haxunit
-$ python3 -m pip install requirements.txt
+$ python3 -m pip install -r requirements.txt
 $ python3 main.py --install
 ```
 
