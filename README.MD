@@ -20,27 +20,21 @@ If you see unrelated subdomains you can decline and you'll be asked again with o
 If you don't want to be asked to add the domains you can use the `-y` parameter.
 
 # To-do
-- Extend naabu portscan with also IP's found after httpx scan
-- Add reverse DNS search for all IP's discovered by HTTPx
-- Replace dnscan with dnsx once they support recursive bruteforcing of subdomains
-- Remove c99 because it's added to subfinder in 2.5.0
-- Add the ability to set API keys
+- Add host header bruteforce tool to discover virtual hosts
 
 # Installation
 
 
-Requirements (you can run `main.py` as root to automatically install these, except python3):
+Requirements
 - `python3` (>=3.8)
-- `unzip`
-- `pip3`
-- `git`
-- `docker`
+- `go` (>=1.17)
+- `docker` 
 
-
-Clone repository and automatically install all dependencies:
+Clone repository, install python requirements and automatically install all tools:
 ```commandline
 $ git clone https://github.com/Bandit-HaxUnit/haxunit
 $ cd haxunit
+$ python3 -m pip install requirements.txt
 $ python3 main.py --install
 ```
 
@@ -50,8 +44,7 @@ Not available yet - the installation is easy however.
 # Usage
 
 ```commandline
-usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YOLO]
-               [-u UPDATE] [-i]
+usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YES] [-u UPDATE] [-i]
 
 HaxUnit
 
@@ -68,7 +61,7 @@ optional arguments:
   -it ITOKEN, --itoken ITOKEN
                         authentication token for self-hosted interactsh server
   -acu ACUNETIX, --acunetix ACUNETIX
-  -y YOLO, --yolo YOLO  yes to all
+  -y YES, --yes YES     yes to all
   -u UPDATE, --update UPDATE
                         update all tools
   -i, --install         install all tools
@@ -110,7 +103,7 @@ W.I.P. - Preview coming soon!
 
 
 # Flowchart
-![Flowchart](/static/flowchart.png)
+
 
 # Credits
 Huge shoutout to https://github.com/projectdiscovery for all their amazing tools.
