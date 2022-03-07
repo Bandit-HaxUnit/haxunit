@@ -387,21 +387,96 @@ class HaxUnit:
         ):
             self.cmd(cmd)
 
+    def _install(self, name, download, file, binary, tar_gz=False):
+        if not exists(f"tools/{name}") or self.update:
+            for text, cmd in (
+                    (f"Downloading {name}", f"wget {download} --quiet"),
+                    ("Extracting tar.gz", f"tar xf {file}") if tar_gz else ("Extracting zip", f"unzip {file}"),
+                    (f"Moving {name} to bin", f"sudo mv {binary} /usr/local/bin/{name}") if name != "getau" else (f"Moving {name} to bin", f"sudo mv {binary} /usr/local/bin/getau"),
+                    ("Cleanup", f"rm -f {file} README.md LICENSE.md LICENSE"),
+                    ("-", f"touch tools/{name}")
+            ):
+                if text and cmd:
+                    self._print("Installer", f"{name} - {text}")
+                    self._cmd(cmd)
+
+            if name == "nuclei":
+                self._cmd("nuclei -update-templates -update-directory templates")
+                self._cmd("nuclei --update")
+
     def install_all_tools(self):
 
         self.install_nrich()
         # self.install_acunetix()
 
-        for cmd_tool in (
-                "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
-                "go get github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
-                "go get github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
-                "go get github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
-                "go get github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest",
-                "go get github.com/lc/gau/v2/cmd/gau@latest",
-                "go get github.com/tomnomnom/unfurl",
-        ):
-            self.cmd(cmd_tool)
+        # for cmd_tool in (
+        #         "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
+        #         "go get github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+        #         "go get github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+        #         "go get github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+        #         "go get github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest",
+        #         "go get github.com/lc/gau/v2/cmd/gau@latest",
+        #         "go get github.com/tomnomnom/unfurl",
+        # ):
+        #     self.cmd(cmd_tool)
+
+        self._install(
+            name="httpx",
+            download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.0/httpx_1.2.0_linux_amd64.zip",
+            file="httpx_1.2.0_linux_amd64.zip",
+            binary="httpx"
+        )
+
+        self._install(
+            name="naabu",
+            download="https://github.com/projectdiscovery/naabu/releases/download/v2.0.5/naabu_2.0.5_linux_amd64.zip",
+            file="naabu_2.0.5_linux_amd64.zip",
+            binary="naabu"
+        )
+
+        self._install(
+            name="subfinder",
+            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.4.9/subfinder_2.4.9_linux_amd64.zip",
+            file="subfinder_2.4.9_linux_amd64.zip",
+            binary="subfinder"
+        )
+
+        self._install(
+            name="nuclei",
+            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.6.3/nuclei_2.6.3_linux_amd64.zip",
+            file="nuclei_2.6.3_linux_amd64.zip",
+            binary="nuclei"
+        )
+
+        self._install(
+            name="dnsx",
+            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.0.9/dnsx_1.0.9_linux_amd64.zip",
+            file="dnsx_1.0.9_linux_amd64.zip",
+            binary="dnsx"
+        )
+
+        self._install(
+            name="interactsh",
+            download="https://github.com/projectdiscovery/interactsh/releases/download/v1.0.1/interactsh-client_1.0.1_Linux_x86_64.zip",
+            file="interactsh-client_1.0.1_Linux_x86_64.zip",
+            binary="interactsh-client"
+        )
+
+        self._install(
+            name="getau",
+            download="https://github.com/lc/gau/releases/download/v2.0.9/gau_2.0.9_linux_amd64.tar.gz",
+            file="gau_2.0.9_linux_amd64.tar.gz",
+            binary="gau",
+            tar_gz=True
+        )
+
+        self._install(
+            name="unfurl",
+            download="https://github.com/tomnomnom/unfurl/releases/download/v0.2.0/unfurl-linux-amd64-0.2.0.tgz",
+            file="unfurl-linux-amd64-0.2.0.tgz",
+            binary="unfurl",
+            tar_gz=True
+        )
 
 
 def script_init(args) -> str:
