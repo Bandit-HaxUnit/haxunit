@@ -1,9 +1,29 @@
-# HaxUnit
+<h1 align="center">
+  <img src="static/logo.png" alt="httpx" width="200px"></a>
+  <br>
+</h1>
 
-## Installation
+<p align="center">
+  <a href="#intro">Intro</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#usage">Usage</a> •
+  <a href="#running-haxunit">Running HaxUnit</a> •
+  <a href="#functions">Functions</a>
+</p>
 
-Requirements (you can run `haxunit.py` as root to automatically install these, except python3):
-- `python3`
+# Intro
+HaxUnit combines multiple active and passive subdomain enumeration tools and port scanning tools with vulnerability discovery tools.
+
+For each subdomain enumeration tool you'll be prompted to add the new discovered subdomains to the list.</br>
+If you see unrelated subdomains you can decline and you'll be asked again with only subdomains of the same domain as the input.
+
+If you don't want to be asked to add the domains you can use the `-y` parameter.
+
+# Installation
+
+
+Requirements (you can run `main.py` as root to automatically install these, except python3):
+- `python3` (>=3.8)
 - `unzip`
 - `pip3`
 - `git`
@@ -14,10 +34,13 @@ Clone repository and automatically install all dependencies:
 ```commandline
 $ git clone https://github.com/Bandit-HaxUnit/haxunit
 $ cd haxunit
-$ python3 main.py --install-all
+$ python3 main.py --install
 ```
 
-## Usage
+# Docker
+Not available yet - the installation is easy however.
+
+# Usage
 
 ```commandline
 usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YOLO]
@@ -44,7 +67,14 @@ optional arguments:
   -i, --install         install all tools
 ```
 
-Results are saved in `scans/domain.com/timestamp/`
+# Running HaxUnit
+Run a scan on `example.com`
+```commandline
+python3 main.py -d example.com
+```
+
+Results are saved in `scans/example.com/timestamp/` and also a local SQLite database.
+
 
 ## Web
 W.I.P. - Preview coming soon!
@@ -76,4 +106,4 @@ W.I.P. - Preview coming soon!
 ![Flowchart](/static/flowchart.png)
 
 # Credits
-Huge shoutout to projectdiscovery for all their amazing tools.
+Huge shoutout to https://github.com/projectdiscovery for all their amazing tools.

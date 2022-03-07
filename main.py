@@ -1,19 +1,19 @@
 """
-Updates
-- Added Web UI
-- Added Local DB (SQLite)
-- All info is now being stored also in Local DB
-- Naabu uses full list of subdomains instead of IP's found from DNScan
-
 To-do:
 - Extend naabu portscan with also IP's found after httpx scan
-- Add reverse DNS for all IP's discovered by HTTPx
+- Add reverse DNS search for all IP's discovered by HTTPx
+
+- Replace dnscan with dnsx once they support recursive bruteforcing of subdomains
+- Remove c99 because it's added to subfinder in 2.5.0
+- Add the ability to set API keys
+
 """
 
 import subprocess
 from os import geteuid
 
-class color():
+
+class color:
     HEADER = '\033[95m'
     OK = '\033[94m'
     FAIL = '\033[91m'
@@ -22,13 +22,14 @@ class color():
     WARNING = '\033[93m'
     BOLD = '\033[1m'
 
+
 stop = False
 for package_requirement, apt_name in (
         ("unzip", "unzip"),
         ("pip3", "python3-pip"),
         ("git", "git"),
         ("docker", "docker.io"),
-    ):
+):
     retval = subprocess.call(["which", package_requirement])
     if retval != 0:
         print(f"{package_requirement} not installed:\napt install {apt_name}\n")
@@ -48,6 +49,7 @@ import sqlite3 as sl
 
 from json import dumps, loads
 import urllib3
+
 urllib3.disable_warnings()
 from subprocess import PIPE, Popen
 from os.path import exists
@@ -55,6 +57,7 @@ from os import mkdir
 import argparse
 from datetime import datetime
 import socket
+
 
 class HaxUnit:
     sqlite = sl.connect('haxunit-scans.db', isolation_level=None)
@@ -70,7 +73,8 @@ class HaxUnit:
     all_subdomains_up = []
     timestamp = datetime.now()
 
-    def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yolo, update, install_all):
+    def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yolo, update,
+                 install_all):
         self.site = site
         self.verbose = verbose
         self.quick = True if mode == "quick" else False
@@ -141,9 +145,8 @@ class HaxUnit:
         print("\n[HaxUnit] Target:", site)
         print(color.RESET)
 
-
-
-    def _print(self, title="", text="", color_type=""):
+    @staticmethod
+    def _print(title="", text="", color_type=""):
         print(f"[{color.BOLD}HaxUnit{color.RESET}] [{color.OK}{title}{color.RESET}] {color_type}{text}{color.RESET}")
 
     def _add_domain_to_db(self):
@@ -173,7 +176,9 @@ class HaxUnit:
                     (NULL, '{self.domain_id}', '{self.timestamp}', "", "", "", "", "", "", "", "", "", "", "", "", "", "1")
             """)
 
-            self.scan_id = list(self.sqlite.execute(f"SELECT id FROM scans WHERE domain_id = '{self.domain_id}'"))[-1][0]
+            self.scan_id = list(
+                self.sqlite.execute(f"SELECT id FROM scans WHERE domain_id = '{self.domain_id}'")
+            )[-1][0]
             self._print("Local DB", f"Created row to save scan results with ID: {self.scan_id}")
 
     def _install(self, name, download, file, bin, tar_gz=False):
@@ -181,7 +186,8 @@ class HaxUnit:
             for text, cmd in (
                     (f"Downloading {name}", f"wget {download} --quiet"),
                     ("Extracting tar.gz", f"tar xf {file}") if tar_gz else ("Extracting zip", f"unzip {file}"),
-                    (f"Moving {name} to bin", f"sudo mv {bin} /usr/local/bin/{name}") if name != "getau" else (f"Moving {name} to bin", f"sudo mv {bin} /usr/local/bin/getau"),
+                    (f"Moving {name} to bin", f"sudo mv {bin} /usr/local/bin/{name}") if name != "getau" else
+                    (f"Moving {name} to bin", f"sudo mv {bin} /usr/local/bin/getau"),
                     ("Cleanup", f"rm -f {file} README.md LICENSE.md LICENSE"),
                     ("-", f"touch tools/{name}")
             ):
@@ -192,7 +198,6 @@ class HaxUnit:
             if name == "nuclei":
                 self._cmd("nuclei -update-templates -update-directory templates")
                 self._cmd("nuclei --update")
-
 
     def _cmd(self, cmd):
         cmd = " ".join(cmd.split())
@@ -227,15 +232,14 @@ class HaxUnit:
             else:
                 return []
 
-
     def _write_subdomains(self, mode="a"):
         with open(f"{self.dir_path}/all_subdomains.txt", mode) as f:
             all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _])
             f.write(all_subdomains_text)
 
             with self.sqlite:
-                self.sqlite.execute(f"UPDATE scans SET all_subdomains = '{all_subdomains_text}' WHERE id = {self.scan_id}")
-
+                self.sqlite.execute(
+                    f"UPDATE scans SET all_subdomains = '{all_subdomains_text}' WHERE id = {self.scan_id}")
 
     def _dnscan(self):
         if not exists(f"tools/dnscan"):
@@ -255,13 +259,16 @@ class HaxUnit:
         # 1000 takes quite some time - so disabled this for now
 
         try:
-            subdomains = list(set([_.split(" - ")[1].strip() for _ in open(f"{self.dir_path}/dnscan_domains.txt", "r").readlines() if ' - ' in _]))
+            subdomains = list(
+                set([_.split(" - ")[1].strip() for _ in open(f"{self.dir_path}/dnscan_domains.txt", "r").readlines() if
+                     ' - ' in _]))
 
             self._ask_to_add(subdomains, reask_same_tld=True)
 
             with self.sqlite:
                 dnscan_domains_text = "\n".join(subdomains)
-                self.sqlite.execute(f"UPDATE scans SET dnscan_domains = '{dnscan_domains_text}' WHERE id = {self.scan_id}")
+                self.sqlite.execute(
+                    f"UPDATE scans SET dnscan_domains = '{dnscan_domains_text}' WHERE id = {self.scan_id}")
 
                 dnscan_ips_text = self._read("dnscan_ips.txt", True)
                 self.sqlite.execute(f"UPDATE scans SET dnscan_ips = '{dnscan_ips_text}' WHERE id = {self.scan_id}")
@@ -301,10 +308,8 @@ class HaxUnit:
             self.sqlite.execute(f"UPDATE scans SET all_ips = '{all_ips_text}' WHERE id = {self.scan_id}")
             self.sqlite.execute(
                 f"UPDATE scans SET httpx_result = ? WHERE id = ?",
-                (httpx_parsed_text, self.scan_id, )
+                (httpx_parsed_text, self.scan_id,)
             )
-
-
 
     def _naabu(self):
         input_file = self._read("all_subdomains.txt")
@@ -326,7 +331,6 @@ class HaxUnit:
             except FileNotFoundError:
                 pass
 
-
     def _subfinder(self):
         self._print("Subfinder", "Process started")
         self._cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -recursive -t 100 -nW -nC -all -o {self.dir_path}/subfinder_subdomains.txt")
@@ -335,7 +339,6 @@ class HaxUnit:
         with self.sqlite:
             subfinder_subdomains_text = self._read("subfinder_subdomains.txt", True)
             self.sqlite.execute(f"UPDATE scans SET subfinder_subdomains = '{subfinder_subdomains_text}' WHERE id = {self.scan_id}")
-
 
     def _crtsh(self):
         self._print("crt.sh", "Gathering subdomains from crt.sh")
@@ -349,9 +352,8 @@ class HaxUnit:
                 self.sqlite.execute(f"UPDATE scans SET crtsh_subdomains = '{subdomains_text}' WHERE id = {self.scan_id}")
 
             self._ask_to_add(subdomains)
-        except:
+        except (ConnectionError, TimeoutError):
             self._print("crt.sh", "Request to crt.sh failed", color.FAIL)
-
 
     def _nuclei(self):
         self._cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
@@ -366,7 +368,8 @@ class HaxUnit:
                         {f"-itoken {self.itoken}" if self.itoken else ""}
                     """)
 
-        self._cmd("""grep -v "aws\-bucket\-service\|google\-bucket\-service\|nginx\-version\|unencrypted\-bigip\-ltm\-cookie\|\-detect\|missing\-\|display\-via\-header\|detect\-options\|old\-copyright\|iis\-shortname\|HTTP\-TRACE\|robots\-txt\|generic\-tokens\|package\-json\|composer\-config\|fingerprinthub" %s/nuclei_result.txt | awk {'print $3 " " $1 " " $4 " " $5'} | sort > %s/loot.txt""" % (self.dir_path, self.dir_path))
+        self._cmd("""grep -v "aws\-bucket\-service\|google\-bucket\-service\|nginx\-version\|unencrypted\-bigip\-ltm\-cookie\|\-detect\|missing\-\|display\-via\-header\|detect\-options\|old\-copyright\|iis\-shortname\|HTTP\-TRACE\|robots\-txt\|generic\-tokens\|package\-json\|composer\-config\|fingerprinthub" %s/nuclei_result.txt | awk {'print $3 " " $1 " " $4 " " $5'} | sort > %s/loot.txt"""
+                  % (self.dir_path, self.dir_path))
 
         with self.sqlite:
             nuclei_result_text = self._read("nuclei_result.txt", True)
@@ -384,7 +387,8 @@ class HaxUnit:
             if self._ask(f"{color.WARNING}(!) Your IP ({ipaddress}) does not seem to be a proxy or VPN, would you like to quit? {color.RESET}"):
                 exit()
 
-    def _remove_unwanted_domains(self, domain_list):
+    @staticmethod
+    def _remove_unwanted_domains(domain_list):
         unwanted_domains = (
             "cloudfront.net",
             "googleusercontent.com",
@@ -425,13 +429,12 @@ class HaxUnit:
     def _cleanup(self):
         for file in (
             # "all_subdomains.txt",
-            #"all_subdomains_up.txt",
+            # "all_subdomains_up.txt",
             # "dnscan_ips.txt",
             # "dnscan_domains.txt",
             # "subfinder_subdomains.txt",
         ):
             self._cmd(f"rm -f {self.dir_path}/{file}")
-
 
     def _sonar_search(self):
         self._print("Sonar search", "Process started")
@@ -441,7 +444,7 @@ class HaxUnit:
 
             all_sonar_subdomains = []
 
-            sonar_domains = loads(get(f"https://sonar.omnisint.io/tlds/{domain_name}", timeout=15).text)
+            sonar_domains = get(f"https://sonar.omnisint.io/tlds/{domain_name}", timeout=15).json()
 
             for domain in sonar_domains:
                 sonar_subdomains = get(f"https://sonar.omnisint.io/subdomains/{domain}", timeout=15).text.strip()
@@ -449,7 +452,7 @@ class HaxUnit:
                     all_sonar_subdomains.extend(loads(sonar_subdomains))
 
             self._ask_to_add(all_sonar_subdomains, reask_same_tld=True)
-        except:
+        except (ConnectionError, TimeoutError):
             self._print("Sonar search", "Sonar search failed - skipping", color.FAIL)
 
     def _sonar_reverse_dns(self):
@@ -468,7 +471,7 @@ class HaxUnit:
 
             use_whole_range = self._ask("Do you want to scan whole range (x.x.x.0/32)? ")
 
-            reverse_dns_domains = loads(get(f"https://sonar.omnisint.io/reverse/{domain_ip_range if use_whole_range else domain_ip}").text)
+            reverse_dns_domains = get(f"https://sonar.omnisint.io/reverse/{domain_ip_range if use_whole_range else domain_ip}").json()
 
             if use_whole_range:
                 all_domains = []
@@ -487,9 +490,8 @@ class HaxUnit:
                         print(d)
 
                     self._ask_to_add(containing_domain)
-        except:
+        except (ConnectionError, TimeoutError):
             self._print("Sonar reverse DNS", "Sonar reverse dns failed - skipping", color.FAIL)
-
 
     def _c99_subdomains(self):
         self._print("C99", "Getting subdomains from C99 API")
@@ -505,7 +507,7 @@ class HaxUnit:
             if not any(x in response.text for x in invalid_strings):
                 subdomains = [_.strip() for _ in response.text.split("<br>") if _]
                 self._ask_to_add(subdomains)
-        except:
+        except (ConnectionError, TimeoutError):
             self._print("C99", "Request failed!", color.FAIL)
 
     def _install_lepus(self):
@@ -547,7 +549,6 @@ class HaxUnit:
             # except:
             #     print("[HaxUnit] Installed failed for some reason - skipping")
 
-
     def _acunetix(self):
 
         if self.acu_session:
@@ -564,8 +565,9 @@ class HaxUnit:
 
             self._print("Acunetix", f"Active subdomain count: {len(self.all_subdomains_up)}")
 
-            target_group_data = {"name":self.site,"description":""}
-            group_id = post('https://localhost:3443/api/v1/target_groups', headers=headers, cookies=cookies, data=dumps(target_group_data), verify=False).json()["group_id"]
+            target_group_data = {"name": self.site, "description": ""}
+            group_id = post('https://localhost:3443/api/v1/target_groups', headers=headers, cookies=cookies,
+                            data=dumps(target_group_data), verify=False).json()["group_id"]
 
             if len(self.all_subdomains_up) < 30 and self._ask("[HaxUnit] Do you want to scan all subdomains using acunetix? "):
                 data = {
@@ -588,10 +590,10 @@ class HaxUnit:
 
             if data:
 
-                response = post('https://localhost:3443/api/v1/targets/add', headers=headers, cookies=cookies, data=dumps(data), verify=False).json()
+                response = post('https://localhost:3443/api/v1/targets/add', headers=headers, cookies=cookies,
+                                data=dumps(data), verify=False).json()
 
                 for target in response["targets"]:
-
                     data = {
                         "profile_id": "11111111-1111-1111-1111-111111111111",
                         "ui_session_id": "56eeaf221a345258421fd6ae1acca394",
@@ -606,8 +608,8 @@ class HaxUnit:
 
                     post('https://localhost:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data), verify=False)
 
-
-    def _securitytrails(self):
+    @staticmethod
+    def _securitytrails():
         domain = "test.com"
         response = get(f"https://securitytrails.com/_next/data/8153b487/list/apex_domain/{domain}.json").json()
 
@@ -625,7 +627,6 @@ class HaxUnit:
         with self.sqlite:
             gau_unfurl_domains_text = self._read("gau_unfurl_domains.txt", True)
             self.sqlite.execute(f"UPDATE scans SET gau_unfurl_domains = '{gau_unfurl_domains_text}' WHERE id = {self.scan_id}")
-
 
     def _update_scan_status(self, status):
         with self.sqlite:
@@ -649,8 +650,8 @@ class HaxUnit:
 
         self._install(
             name="httpx",
-            download="https://github.com/projectdiscovery/httpx/releases/download/v1.1.5/httpx_1.1.5_linux_amd64.zip",
-            file="httpx_1.1.5_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.0/httpx_1.2.0_linux_amd64.zip",
+            file="httpx_1.2.0_linux_amd64.zip",
             bin="httpx"
         )
 
@@ -663,22 +664,22 @@ class HaxUnit:
 
         self._install(
             name="subfinder",
-            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.4.9/subfinder_2.4.9_linux_amd64.zip",
-            file="subfinder_2.4.9_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.5.0/subfinder_2.5.0_linux_amd64.zip",
+            file="subfinder_2.5.0_linux_amd64.zip",
             bin="subfinder"
         )
 
         self._install(
             name="nuclei",
-            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.5.9/nuclei_2.5.9_linux_amd64.zip",
-            file="nuclei_2.5.9_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.6.3/nuclei_2.6.3_linux_amd64.zip",
+            file="nuclei_2.6.3_linux_amd64.zip",
             bin="nuclei"
         )
 
         self._install(
             name="dnsx",
-            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.0.7/dnsx_1.0.7_linux_amd64.zip",
-            file="dnsx_1.0.7_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.0.9/dnsx_1.0.9_linux_amd64.zip",
+            file="dnsx_1.0.9_linux_amd64.zip",
             bin="dnsx"
         )
 
@@ -691,8 +692,8 @@ class HaxUnit:
 
         self._install(
             name="getau",
-            download="https://github.com/lc/gau/releases/download/v2.0.8/gau_2.0.8_linux_amd64.tar.gz",
-            file="gau_2.0.8_linux_amd64.tar.gz",
+            download="https://github.com/lc/gau/releases/download/v2.0.9/gau_2.0.9_linux_amd64.tar.gz",
+            file="gau_2.0.9_linux_amd64.tar.gz",
             bin="gau",
             tar_gz=True
         )
@@ -704,8 +705,6 @@ class HaxUnit:
             bin="unfurl",
             tar_gz=True
         )
-
-
 
 
 def script_init(args) -> str:
@@ -727,7 +726,6 @@ def script_init(args) -> str:
 
 
 def main():
-
     parser = argparse.ArgumentParser(description='HaxUnit')
     parser.add_argument('-d', '--domain', type=str, help='the website to recon: example.com', required=False)
     parser.add_argument('-m', '--mode', type=str, help='you can set to scan `quick` or `extensive`', default='extensive')
@@ -739,7 +737,6 @@ def main():
     parser.add_argument('-y', '--yolo', type=bool, help='yes to all', default=False)
     parser.add_argument('-u', '--update', type=bool, help='update all tools', default=False)
     parser.add_argument('-i', '--install', help='install all tools', default=False, action="store_true")
-
 
     args = parser.parse_args()
     dir_path = script_init(args)
@@ -801,6 +798,7 @@ def main():
         print(e)
         print("\nUnexpected error")
         hax._update_scan_status("3")
+
 
 if __name__ == '__main__':
     main()
