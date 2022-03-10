@@ -13,6 +13,7 @@ from os.path import exists
 from os import mkdir
 import argparse
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Colors:
@@ -35,7 +36,7 @@ class HaxUnit:
     timestamp = datetime.now()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yes_to_all, update,
-                 install_all):
+                 install_all, resolvers_file):
         self.site = site
         self.verbose = verbose
         self.quick = True if mode == "quick" else False
@@ -44,6 +45,7 @@ class HaxUnit:
         self.yes_to_all = yes_to_all
         self.update = update
         self.install_all = install_all
+        self.resolvers_file = resolvers_file
 
         self.iserver = iserver
         self.itoken = itoken
@@ -61,7 +63,7 @@ class HaxUnit:
  | |  | | (_| |>  <| |__| | | | | | |_ 
  |_|  |_|\__,_/_/\_\\____/|_| |_|_|\__|
 
-                                       v3.1 by the butcher""")
+                                       v3.2 by the butcher""")
 
         print()
 
@@ -159,6 +161,9 @@ class HaxUnit:
         self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -nC -all -o {self.dir_path}/subfinder_subdomains.txt")
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
         self.write_subdomains()
+
+    def findomain(self) -> None:
+        pass
 
     def nuclei(self) -> None:
         self.cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
@@ -281,9 +286,38 @@ class HaxUnit:
 
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -silent -d {self.site} -w data/{'subdomains-1000.txt' if self.quick else 'subdomains-10000.txt'} -o {self.dir_path}/dnsx_result.txt")
-
+        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-10000.txt -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
         self.ask_to_add(self.read("dnsx_result.txt"))
+
+        if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
+            self.print("DNSx", "Started multi-threaded recursive bruteforce")
+
+            all_found_subdomains = []
+
+            try:
+                for iteration in range(0, 100):
+                    print()
+                    self.print("DNSx", f"Iteration: {iteration}")
+
+                    def dnsx_brute(subdomain):
+                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+
+                    file_to_read = "dnsx_result.txt" if not iteration else f"dnsx_recursive_iter_{iteration - 1}_result.txt"
+                    self.print("DNSx", f"Reading file: {file_to_read}")
+
+                    dnsx_result = self.read(file_to_read)
+                    self.print("DNSx", f"List of subdomains: {dnsx_result}")
+
+                    if dnsx_result:
+                        all_found_subdomains.extend(dnsx_result)
+                        with ThreadPoolExecutor(max_workers=5) as pool:
+                            pool.map(dnsx_brute, dnsx_result)
+                    else:
+                        break
+            except KeyboardInterrupt:
+                self.print("DNSx", "Bruteforce stopped")
+
+            self.ask_to_add(all_found_subdomains)
 
     def dnsx_ips(self) -> None:
         self.print("DNSx", "Get A records")
@@ -375,9 +409,7 @@ class HaxUnit:
 
     def gau_unfurl(self) -> None:
         self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
-
-        gau_unfurl_domains = self.read("gau_unfurl_domains.txt")
-        self.ask_to_add(gau_unfurl_domains)
+        self.ask_to_add(self.read("gau_unfurl_domains.txt"))
 
     def install_nrich(self) -> None:
         for cmd in (
@@ -386,6 +418,15 @@ class HaxUnit:
                 "rm nrich_latest_amd64.deb",
         ):
             self.cmd(cmd)
+
+    def install_findomain(self):
+        for cmd in (
+            "wget https://github.com/findomain/findomain/releases/latest/download/findomain-linux",
+            "chmod +x findomain-linux",
+            "sudo mv findomain-linux /usr/local/bin"
+        ):
+            self.cmd(cmd)
+
 
     def install(self, name, download, file, binary, tar_gz=False):
         if not exists(f"tools/{name}") or self.update:
@@ -408,6 +449,7 @@ class HaxUnit:
 
         self.install_nrich()
         # self.install_acunetix()
+        self.install_findomain()
 
         # for cmd_tool in (
         #         "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
@@ -509,6 +551,7 @@ def main():
     parser.add_argument('-y', '--yes', type=bool, help='yes to all', default=False)
     parser.add_argument('-u', '--update', type=bool, help='update all tools', default=False)
     parser.add_argument('-i', '--install', help='install all tools', default=False, action="store_true")
+    parser.add_argument('-r', '--resolvers', help='dnsx - list of resolvers to use (file or comma separated)', default='')
 
     args = parser.parse_args()
     dir_path = script_init(args)
@@ -525,6 +568,7 @@ def main():
         yes_to_all=args.yes,
         update=args.update,
         install_all=args.install,
+        resolvers_file=args.resolvers
     )
 
     try:

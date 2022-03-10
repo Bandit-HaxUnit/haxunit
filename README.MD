@@ -21,7 +21,8 @@ If you don't want to be asked to add the domains you can use the `-y` parameter.
 
 # To-do
 - Add host header bruteforce tool to discover virtual hosts
-
+- Add https://github.com/Josue87/AnalyticsRelationships
+- Add https://github.com/0xInfection/LogMePwn
 # Installation
 
 
@@ -76,7 +77,7 @@ Run a scan on `example.com`
 python3 main.py -d example.com
 ```
 
-Results are saved in `scans/example.com/timestamp/` and also a local SQLite database.
+Results are saved in `scans/example.com/timestamp/`
 
 # Functions
 
