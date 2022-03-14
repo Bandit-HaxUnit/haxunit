@@ -63,7 +63,7 @@ class HaxUnit:
  | |  | | (_| |>  <| |__| | | | | | |_ 
  |_|  |_|\__,_/_/\_\\____/|_| |_|_|\__|
 
-                                       v3.2 by the butcher""")
+                                       v3.3 by the butcher""")
 
         print()
 
@@ -411,6 +411,10 @@ class HaxUnit:
         self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
         self.ask_to_add(self.read("gau_unfurl_domains.txt"))
 
+    def ripgen(self):
+        self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > > {self.dir_path}/ripgen_result.txt")
+        self.ask_to_add(self.read("ripgen_result.txt"))
+
     def install_nrich(self) -> None:
         for cmd in (
                 "wget https://gitlab.com/api/v4/projects/33695681/packages/generic/nrich/latest/nrich_latest_amd64.deb",
@@ -445,11 +449,20 @@ class HaxUnit:
                 self.cmd("nuclei -update-templates -update-directory templates")
                 self.cmd("nuclei --update")
 
+    def install_ripgen(self):
+        for rg_cmd in (
+            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+            "source $HOME/.cargo/env",
+            "cargo install ripgen",
+        ):
+            self.cmd(rg_cmd)
+
     def install_all_tools(self):
 
         self.install_nrich()
         # self.install_acunetix()
         self.install_findomain()
+        self.install_ripgen()
 
         # for cmd_tool in (
         #         "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
@@ -577,6 +590,7 @@ def main():
         hax.dnsx_subdomains()
         hax.subfinder()
         hax.gau_unfurl()
+        hax.ripgen()
         hax.dnsx_ips()
         hax.sonar_reverse_dns()
         hax.nrich()
