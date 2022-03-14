@@ -85,11 +85,13 @@ Results are saved in `scans/example.com/timestamp/`
 | dnsx_subdomains   | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
 | subfinder         | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
 | gau_unfurl        | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
+| ripgen            | Subdomain discovery             | Generate and test subdomain permutations                                                              |
  | dnsx_ips          | Get IP addresses                | Use dnsx to fetch A records                                                                           |
 | sonar_reverse_dns | Subdomain discovery             | Find subdomains using reverse dns search from omnisint (FDNS)                                         |
 | nrich             | Port scan + Subdomain discovery | Faster alternative to active port scanning to naabu                                                   | 
 | naabu             | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
 | httpx             | Subdomain list validation       | Check all found subdomains if they are active                                                         |
+| wpscan            | Vulnerability discovery         | WordPress Security Scanner                                                                            |
 | acunetix          | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
 | nuclei            | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        |
 
