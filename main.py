@@ -36,7 +36,7 @@ class HaxUnit:
     timestamp = datetime.now()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yes_to_all, update,
-                 install_all, resolvers_file):
+                 install_all, resolvers_file, wpscan_api_token):
         self.site = site
         self.verbose = verbose
         self.quick = True if mode == "quick" else False
@@ -46,6 +46,7 @@ class HaxUnit:
         self.update = update
         self.install_all = install_all
         self.resolvers_file = resolvers_file
+        self.wpscan_api_token = wpscan_api_token
 
         self.iserver = iserver
         self.itoken = itoken
@@ -63,7 +64,7 @@ class HaxUnit:
  | |  | | (_| |>  <| |__| | | | | | |_ 
  |_|  |_|\__,_/_/\_\\____/|_| |_|_|\__|
 
-                                       v3.3 by the butcher""")
+                                       v3.4 by the butcher""")
 
         print()
 
@@ -132,7 +133,7 @@ class HaxUnit:
         self.cmd(f"cat {self.dir_path}/httpx_parsed.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
 
         awk_cmd_3 = """awk -F "," {'print $1'}"""
-        self.cmd(f"cat httpx_parsed.csv | {awk_cmd_3} | tail -n +2 | tr -d '[]' | sort -u >> {self.dir_path}/httpx_ips.txt")
+        self.cmd(f"cat {self.dir_path}/httpx_parsed.csv | {awk_cmd_3} | tail -n +2 | tr -d '[]' | sort -u >> {self.dir_path}/httpx_ips.txt")
 
         self.cmd(f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnscan_ips.txt | sort -u > {self.dir_path}/all_ips.txt")
 
@@ -160,7 +161,6 @@ class HaxUnit:
         self.print("Subfinder", "Process started")
         self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -nC -all -o {self.dir_path}/subfinder_subdomains.txt")
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
-        self.write_subdomains()
 
     def findomain(self) -> None:
         pass
@@ -220,6 +220,7 @@ class HaxUnit:
 
             if self.ask(f"\nWould you like to add {len(ask_domains)} domains to the list? "):
                 self.all_subdomains.extend(ask_domains)
+                self.write_subdomains()
                 return True
             elif reask_same_tld:
                 self.ask_to_add(list(set([_ for _ in ask_domains if _.endswith(self.site)])))
@@ -412,8 +413,27 @@ class HaxUnit:
         self.ask_to_add(self.read("gau_unfurl_domains.txt"))
 
     def ripgen(self):
-        self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > > {self.dir_path}/ripgen_result.txt")
+        self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > {self.dir_path}/ripgen_result.txt")
         self.ask_to_add(self.read("ripgen_result.txt"))
+
+    def wpscan(self):
+
+        def single_wpscan(wp_domain):
+            filename = wp_domain.replace("https://", "").replace("http://", "").replace(".", "_").replace("/", "").replace(":", "_").strip()
+            self.cmd(f"docker run -it --rm wpscanteam/wpscan --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
+
+        self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $9'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
+        wordpress_domains = self.read("wordpress_domains.txt")
+
+        if wordpress_domains:
+            for domain in wordpress_domains:
+                print(domain)
+            print()
+
+            if self.ask(f"Would you like to run wpscan on all ({len(wordpress_domains)}) domains? "):
+
+                with ThreadPoolExecutor(max_workers=5) as pool:
+                    pool.map(single_wpscan, wordpress_domains)
 
     def install_nrich(self) -> None:
         for cmd in (
@@ -422,6 +442,9 @@ class HaxUnit:
                 "rm nrich_latest_amd64.deb",
         ):
             self.cmd(cmd)
+
+    def install_wpscan(self):
+        self.cmd("docker pull wpscanteam/wpscan")
 
     def install_findomain(self):
         for cmd in (
@@ -463,6 +486,7 @@ class HaxUnit:
         # self.install_acunetix()
         self.install_findomain()
         self.install_ripgen()
+        self.install_wpscan()
 
         # for cmd_tool in (
         #         "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
@@ -474,6 +498,7 @@ class HaxUnit:
         #         "go get github.com/tomnomnom/unfurl",
         # ):
         #     self.cmd(cmd_tool)
+        # sudo ln -s ~/go/bin/httpx /usr/sbin/httpx
 
         self.install(
             name="httpx",
@@ -565,6 +590,7 @@ def main():
     parser.add_argument('-u', '--update', type=bool, help='update all tools', default=False)
     parser.add_argument('-i', '--install', help='install all tools', default=False, action="store_true")
     parser.add_argument('-r', '--resolvers', help='dnsx - list of resolvers to use (file or comma separated)', default='')
+    parser.add_argument('--wpscan-api-token', help='The WPScan API Token to display vulnerability data', default='')
 
     args = parser.parse_args()
     dir_path = script_init(args)
@@ -581,7 +607,8 @@ def main():
         yes_to_all=args.yes,
         update=args.update,
         install_all=args.install,
-        resolvers_file=args.resolvers
+        resolvers_file=args.resolvers,
+        wpscan_api_token=args.wpscan_api_token,
     )
 
     try:
@@ -596,6 +623,7 @@ def main():
         hax.nrich()
         hax.naabu()
         hax.httpx()
+        hax.wpscan()
         hax.acunetix()
         hax.nuclei()
 

@@ -32,7 +32,7 @@ Requirements
 - `unzip` (used until I implement `go get` soon to install tools)
 - `docker`
 
-Docker is only required if you install acunetix by uncommenting `self.install_acunetix()`
+You can install Acunetix by uncommenting `self.install_acunetix()`
 
 Clone repository, install python requirements and automatically install all tools:
 ```commandline
@@ -48,27 +48,25 @@ Not available yet - the installation is easy however.
 # Usage
 
 ```commandline
-usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YES] [-u UPDATE] [-i]
+usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YES] [-u UPDATE] [-i] [-r RESOLVERS]
+               [--wpscan-api-token WPSCAN_API_TOKEN]
 
 HaxUnit
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d DOMAIN, --domain DOMAIN
-                        the website to recon: example.com
+  -d DOMAIN, --domain DOMAIN the website to recon: example.com
   -m MODE, --mode MODE  you can set to scan `quick` or `extensive`
-  -v VERBOSE, --verbose VERBOSE
-                        print more information
+  -v VERBOSE, --verbose VERBOSE print more information
   -b BIN, --bin BIN     set which python bin to use
-  -is ISERVER, --iserver ISERVER
-                        interactsh server url for self-hosted instance
-  -it ITOKEN, --itoken ITOKEN
-                        authentication token for self-hosted interactsh server
+  -is ISERVER, --iserver ISERVER interactsh server url for self-hosted instance
+  -it ITOKEN, --itoken ITOKEN authentication token for self-hosted interactsh server
   -acu ACUNETIX, --acunetix ACUNETIX
   -y YES, --yes YES     yes to all
-  -u UPDATE, --update UPDATE
-                        update all tools
+  -u UPDATE, --update UPDATE update all tools
   -i, --install         install all tools
+  -r RESOLVERS, --resolvers RESOLVERS dnsx - list of resolvers to use (file or comma separated)
+  --wpscan-api-token WPSCAN_API_TOKEN The WPScan API Token to display vulnerability data
 ```
 
 # Running HaxUnit
