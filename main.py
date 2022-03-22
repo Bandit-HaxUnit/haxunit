@@ -10,11 +10,13 @@ import urllib3
 urllib3.disable_warnings()
 from subprocess import PIPE, Popen
 from os.path import exists
-from os import mkdir
+from os import mkdir, getenv
 import argparse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Colors:
     HEADER = '\033[95m'
@@ -46,7 +48,8 @@ class HaxUnit:
         self.update = update
         self.install_all = install_all
         self.resolvers_file = resolvers_file
-        self.wpscan_api_token = wpscan_api_token
+        self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
+        self.acunetix_threshold = getenv("ACUNETIX_THRESHOLD", 30)
 
         self.iserver = iserver
         self.itoken = itoken
@@ -123,17 +126,13 @@ class HaxUnit:
         self.cmd(f"nrich {self.dir_path}/dnsx_ips.txt > {self.dir_path}/nrich_result.txt")
 
     def httpx(self) -> None:
-        self.cmd(
-            f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15")
+        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15")
 
-        awk_cmd = """awk -F "," {'print $9 "," $10 "," $11 "," $12 "," $13 "," $14 "," $16 "," $20 "," $23 "," $32 '}"""
-        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd} > {self.dir_path}/httpx_parsed.csv")
+        awk_cmd_2 = """awk -F "," {'print $9'} | awk -F ":" {'print $1 ":" $2'} """
+        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
 
-        awk_cmd_2 = """awk -F "," {'print $3'} | awk -F ":" {'print $1 ":" $2'} """
-        self.cmd(f"cat {self.dir_path}/httpx_parsed.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
-
-        awk_cmd_3 = """awk -F "," {'print $1'}"""
-        self.cmd(f"cat {self.dir_path}/httpx_parsed.csv | {awk_cmd_3} | tail -n +2 | tr -d '[]' | sort -u >> {self.dir_path}/httpx_ips.txt")
+        awk_cmd_3 = """awk -F "," {'print $18'}"""
+        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_3} | sort -u | head -n -1 >> {self.dir_path}/httpx_ips.txt")
 
         self.cmd(f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnscan_ips.txt | sort -u > {self.dir_path}/all_ips.txt")
 
@@ -243,7 +242,7 @@ class HaxUnit:
                     all_sonar_subdomains.extend(loads(sonar_subdomains))
 
             self.ask_to_add(all_sonar_subdomains, reask_same_tld=True)
-        except (ConnectionError, TimeoutError):
+        except:# (ConnectionError, TimeoutError):
             self.print("Sonar search", "Sonar search failed - skipping", Colors.FAIL)
 
     def sonar_reverse_dns(self) -> None:
@@ -282,7 +281,7 @@ class HaxUnit:
                                 print(d)
 
                             self.ask_to_add(containing_domain)
-            except (ConnectionError, TimeoutError):
+            except:# (ConnectionError, TimeoutError):
                 self.print("Sonar reverse DNS", "Sonar reverse dns failed - skipping", Colors.FAIL)
 
     def dnsx_subdomains(self) -> None:
@@ -383,7 +382,7 @@ class HaxUnit:
                     verify=False
                 ).json()["group_id"]
 
-            if len(self.all_subdomains_up) < 30 and self.ask(
+            if len(self.all_subdomains_up) < self.acunetix_threshold and self.ask(
                     "[HaxUnit] Do you want to scan all subdomains using acunetix? "):
                 data = {
                     "targets": [{
@@ -394,7 +393,7 @@ class HaxUnit:
                 }
             elif self.ask("[HaxUnit] Do you want to scan only the main domain using acunetix? "):
                 main_domain = [_ for _ in self.all_subdomains_up if f"//{self.site}" in _][0]
-                self.print("Acunetix", "Main domain: {main_domain}")
+                self.print("Acunetix", f"Main domain: {main_domain}")
                 data = {
                     "targets": [{
                         "address": main_domain,
@@ -423,6 +422,8 @@ class HaxUnit:
 
                     post('https://localhost:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data),
                          verify=False)
+
+                self.print("Acunetix", f"Scan(s) started!")
 
     def gau_unfurl(self) -> None:
         self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")

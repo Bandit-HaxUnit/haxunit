@@ -36,11 +36,27 @@ You can install Acunetix by uncommenting `self.install_acunetix()`
 
 Clone repository, install python requirements and automatically install all tools:
 ```commandline
-$ git clone https://github.com/Bandit-HaxUnit/haxunit
-$ cd haxunit
-$ python3 -m pip install -r requirements.txt
-$ python3 main.py --install
+git clone https://github.com/Bandit-HaxUnit/haxunit
+cd haxunit
+python3 -m pip install -r requirements.txt
+python3 main.py --install
 ```
+
+# Post Installation Instructions
+
+## subfinder
+Subfinder will work after using the installation instructions however to configure Subfinder to work with certain services, you will need to have setup API keys.</br>
+<a href="https://github.com/projectdiscovery/subfinder#post-installation-instructions">More info</a>
+
+## wpscan
+The WPScan CLI tool uses the WordPress Vulnerability Database API to retrieve WordPress vulnerability data in real time.</br>
+
+For WPScan to retrieve the vulnerability data an API token must be supplied via the `--wpscan-api-token` parameter.</br>
+
+You can also set it as environment variable in  by renaming `.env.example` to `.env` and filling in your API key.</br>
+```WPSCAN_API_KEY=```
+
+An API token can be obtained by registering an account on <a href="https://wpscan.com/register">WPScan.com</a>.
 
 # Docker
 Not available yet - the installation is easy however.
