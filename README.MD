@@ -106,6 +106,9 @@ Pass this API key to `-acu` like the following:
 python3 main.py -d example.com -acu 2940ad8c0a5b3df4d7028d5f3c06e936c0a42bb5a50d24c69a64e81cd21d62b12
 ```
 
+You can also set it as environment variable in `.env`</br>
+```ACUNETIX_API_KEY=```
+
 <h1 align="center">
   <img src="static/acunetix_api_key.png" alt="acunetix_api_key" width="100%">
   <br>
