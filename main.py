@@ -287,7 +287,7 @@ class HaxUnit:
 
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-10000.txt -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-10000.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
         if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
@@ -301,7 +301,7 @@ class HaxUnit:
                     self.print("DNSx", f"Iteration: {iteration}")
 
                     def dnsx_brute(subdomain):
-                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
 
                     file_to_read = "dnsx_result.txt" if not iteration else f"dnsx_recursive_iter_{iteration - 1}_result.txt"
                     self.print("DNSx", f"Reading file: {file_to_read}")
@@ -330,7 +330,7 @@ class HaxUnit:
         if not exists("acunetix_docker"):
             self.print("Acunetix", "Installing Acunetix Docker")
 
-            self.cmd("git clone https://github.com/vncloudsco/acu807155.git acunetix_docker")
+            self.cmd("git clone https://github.com/Bandit-HaxUnit/acu807155 acunetix_docker")
 
             new_email = input("\n\nPlease enter acunetix email (leave blank for default: contact@manhtuong.net): ")
             if new_email:
