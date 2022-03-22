@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="static/logo.png" alt="haxunit" width="200px"></a>
+  <img src="static/logo.png" alt="haxunit" width="200px">
   <br>
 </h1>
 
@@ -76,6 +76,25 @@ python3 main.py -d example.com
 ```
 
 Results are saved in `scans/example.com/timestamp/`
+
+# Using Acunetix
+
+HaxUnit uses Acunetix's REST API to automatically create groups and start scans.</br>
+You can select to scan all found subdomains or only the main domain.
+
+To generate an API key go to `https://localhost:3443/#/profile`
+
+Pass this API key to `-acu` like the following:
+
+```commandline
+python3 main.py -d example.com -acu 2940ad8c0a5b3df4d7028d5f3c06e936c0a42bb5a50d24c69a64e81cd21d62b12
+```
+
+<h1 align="center">
+  <img src="static/acunetix_api_key.png" alt="acunetix_api_key" width="100%">
+  <br>
+</h1>
+
 
 # Functions
 

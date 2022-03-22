@@ -363,9 +363,25 @@ class HaxUnit:
 
             self.print("Acunetix", f"Active subdomain count: {len(self.all_subdomains_up)}")
 
-            target_group_data = {"name": self.site, "description": ""}
-            group_id = post('https://localhost:3443/api/v1/target_groups', headers=headers, cookies=cookies,
-                            data=dumps(target_group_data), verify=False).json()["group_id"]
+            all_groups = get("https://localhost:3443/api/v1/target_groups", headers=headers, verify=False).json()["groups"]
+
+            try:
+                group_id = next(row["group_id"] for row in all_groups if row["name"] == self.site)
+            except StopIteration:
+                group_id = None
+
+            if group_id:
+                self.print("Acunetix", f"Group already exists: {group_id}")
+            else:
+                self.print("Acunetix", "Creating new group")
+
+                group_id = post(
+                    'https://localhost:3443/api/v1/target_groups',
+                    headers=headers,
+                    cookies=cookies,
+                    data=dumps({"name": self.site, "description": ""}),
+                    verify=False
+                ).json()["group_id"]
 
             if len(self.all_subdomains_up) < 30 and self.ask(
                     "[HaxUnit] Do you want to scan all subdomains using acunetix? "):
