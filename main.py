@@ -49,12 +49,12 @@ class HaxUnit:
         self.install_all = install_all
         self.resolvers_file = resolvers_file
         self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
-        self.acunetix_threshold = getenv("ACUNETIX_THRESHOLD", 30)
+        self.acunetix_threshold = int(getenv("ACUNETIX_THRESHOLD", 30))
 
         self.iserver = iserver
         self.itoken = itoken
 
-        self.acu_session = acu_session
+        self.acu_session = acu_session or getenv("ACUNETIX_API_KEY")
 
         self.cmd("clear")
 
@@ -348,7 +348,14 @@ class HaxUnit:
 
     def acunetix(self) -> None:
 
-        if self.acu_session:
+        def acunetix_up():
+            try:
+                get("https://localhost:3443/api/v1/target_groups")
+                return True
+            except ConnectionError:
+                return False
+
+        if self.acu_session and acunetix_up():
             self.print("Acunetix", "Starting acunetix")
 
             data = {}
