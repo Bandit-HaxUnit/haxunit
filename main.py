@@ -179,7 +179,7 @@ class HaxUnit:
 
     def check_ip(self) -> None:
         ipaddress = get("http://ifconfig.me/ip").text
-
+        self.print("IP Address", ipaddress)
         ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
 
         if ip_check != "Y":
@@ -328,23 +328,11 @@ class HaxUnit:
     def install_acunetix(self) -> None:
         if not exists("acunetix_docker"):
             self.print("Acunetix", "Installing Acunetix Docker")
-
-            self.cmd("git clone https://github.com/Bandit-HaxUnit/acu807155 acunetix_docker")
-
-            new_email = input("\n\nPlease enter acunetix email (leave blank for default: contact@manhtuong.net): ")
-            if new_email:
-                self.cmd(f"sed -i 's/contact@manhtuong.net/{new_email}/g' acunetix_docker/Dockerfile")
-                self.acunetix_email = new_email
-
-            new_password = input("\nPlease enter acunetix password (leave blank for default: Abcd1234): ")
-            if new_password:
-                self.cmd(f"sed -i 's/Abcd1234/{new_password}/g' acunetix_docker/Dockerfile")
-                self.acunetix_password = new_password
-
-            self.cmd("docker build -t aws acunetix_docker")
-            self.cmd("docker run -it -d -p 3443:3443 aws")
+            self.cmd("bash <(curl -skm 10 https://pan.fahai.org/d/Awvs/check.sh) xrsec/awvs")
 
             self.print("Acunetix", "Installed successfully - available at https://localhost:3443/", Colors.SUCCESS)
+            self.print("Acunetix", "Username: awvs@awvs.lan", Colors.SUCCESS)
+            self.print("Acunetix", "Password: Awvs@awvs.lan", Colors.SUCCESS)
 
     def acunetix(self) -> None:
 
@@ -444,7 +432,7 @@ class HaxUnit:
 
         def single_wpscan(wp_domain):
             filename = wp_domain.replace("https://", "").replace("http://", "").replace(".", "_").replace("/", "").replace(":", "_").strip()
-            self.cmd(f"docker run -it --rm wpscanteam/wpscan --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
+            self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
 
         self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $9'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
         wordpress_domains = self.read("wordpress_domains.txt")
