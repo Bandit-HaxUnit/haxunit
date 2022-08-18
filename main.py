@@ -203,6 +203,7 @@ class HaxUnit:
             "azure-dns.com",
             "azure-dns.org",
             "azure-dns.net",
+            "error"
         )
 
         return [_ for _ in domain_list if (not _.endswith(unwanted_domains) and not _.startswith("*"))]
@@ -327,8 +328,8 @@ class HaxUnit:
 
     def install_acunetix(self) -> None:
         if not exists("acunetix_docker"):
-            self.print("Acunetix", "Installing Acunetix Docker")
-            self.cmd("bash <(curl -skm 10 https://pan.fahai.org/d/Awvs/check.sh) xrsec/awvs")
+            self.print("Acunetix", "Installing Acunetix Docker - may take a few minutes.")
+            self.cmd("bash <(curl -skm 10 https://www.fahai.org/aDisk/Awvs/check.sh) xrsec/awvs")
 
             self.print("Acunetix", "Installed successfully - available at https://localhost:3443/", Colors.SUCCESS)
             self.print("Acunetix", "Username: awvs@awvs.lan", Colors.SUCCESS)
@@ -449,7 +450,7 @@ class HaxUnit:
 
     def install_nrich(self) -> None:
         for cmd in (
-                "wget https://gitlab.com/api/v4/projects/33695681/packages/generic/nrich/latest/nrich_latest_amd64.deb",
+                "wget https://gitlab.com/api/v4/projects/33695681/packages/generic/nrich/latest/nrich_latest_amd64.deb --quiet",
                 "sudo dpkg -i nrich_latest_amd64.deb",
                 "rm nrich_latest_amd64.deb",
         ):
@@ -460,9 +461,10 @@ class HaxUnit:
 
     def install_findomain(self):
         for cmd in (
-            "wget https://github.com/findomain/findomain/releases/latest/download/findomain-linux",
-            "chmod +x findomain-linux",
-            "sudo mv findomain-linux /usr/local/bin"
+            "wget https://github.com/Findomain/Findomain/releases/download/8.2.0/findomain-linux.zip",
+            "unzip findomain-linux.zip",
+            "chmod +x findomain",
+            "sudo mv findomain /usr/local/bin"
         ):
             self.cmd(cmd)
 
@@ -486,9 +488,8 @@ class HaxUnit:
 
     def install_ripgen(self):
         for rg_cmd in (
+            "apt remove rustc -y",
             "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
-            "source $HOME/.cargo/env",
-            "cargo install ripgen",
         ):
             self.cmd(rg_cmd)
 
@@ -496,7 +497,7 @@ class HaxUnit:
 
         self.install_nrich()
         # self.install_acunetix()
-        self.install_findomain()
+        # self.install_findomain()
         self.install_ripgen()
         self.install_wpscan()
 
@@ -514,58 +515,58 @@ class HaxUnit:
 
         self.install(
             name="httpx",
-            download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.0/httpx_1.2.0_linux_amd64.zip",
-            file="httpx_1.2.0_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.4/httpx_1.2.4_linux_amd64.zip",
+            file="httpx_1.2.4_linux_amd64.zip",
             binary="httpx"
         )
 
         self.install(
             name="naabu",
-            download="https://github.com/projectdiscovery/naabu/releases/download/v2.0.5/naabu_2.0.5_linux_amd64.zip",
-            file="naabu_2.0.5_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/naabu/releases/download/v2.1.0/naabu_2.1.0_linux_amd64.zip",
+            file="naabu_2.1.0_linux_amd64.zip",
             binary="naabu"
         )
 
         self.install(
             name="subfinder",
-            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.4.9/subfinder_2.4.9_linux_amd64.zip",
-            file="subfinder_2.4.9_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.5.3/subfinder_2.5.3_linux_amd64.zip",
+            file="subfinder_2.5.3_linux_amd64.zip",
             binary="subfinder"
         )
 
         self.install(
             name="nuclei",
-            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.6.3/nuclei_2.6.3_linux_amd64.zip",
-            file="nuclei_2.6.3_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.7.6/nuclei_2.7.6_linux_amd64.zip",
+            file="nuclei_2.7.6_linux_amd64.zip",
             binary="nuclei"
         )
 
         self.install(
             name="dnsx",
-            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.0.9/dnsx_1.0.9_linux_amd64.zip",
-            file="dnsx_1.0.9_linux_amd64.zip",
+            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.1.0/dnsx_1.1.0_linux_amd64.zip",
+            file="dnsx_1.1.0_linux_amd64.zip",
             binary="dnsx"
         )
 
         self.install(
             name="interactsh",
-            download="https://github.com/projectdiscovery/interactsh/releases/download/v1.0.1/interactsh-client_1.0.1_Linux_x86_64.zip",
-            file="interactsh-client_1.0.1_Linux_x86_64.zip",
+            download="https://github.com/projectdiscovery/interactsh/releases/download/v1.0.6/interactsh-client_1.0.6_Linux_x86_64.zip",
+            file="interactsh-client_1.0.6_Linux_x86_64.zip",
             binary="interactsh-client"
         )
 
         self.install(
             name="getau",
-            download="https://github.com/lc/gau/releases/download/v2.0.9/gau_2.0.9_linux_amd64.tar.gz",
-            file="gau_2.0.9_linux_amd64.tar.gz",
+            download="https://github.com/lc/gau/releases/download/v2.1.2/gau_2.1.2_linux_amd64.tar.gz",
+            file="gau_2.1.2_linux_amd64.tar.gz",
             binary="gau",
             tar_gz=True
         )
 
         self.install(
             name="unfurl",
-            download="https://github.com/tomnomnom/unfurl/releases/download/v0.2.0/unfurl-linux-amd64-0.2.0.tgz",
-            file="unfurl-linux-amd64-0.2.0.tgz",
+            download="https://github.com/tomnomnom/unfurl/releases/download/v0.4.3/unfurl-linux-amd64-0.4.3.tgz",
+            file="unfurl-linux-amd64-0.4.3.tgz",
             binary="unfurl",
             tar_gz=True
         )
@@ -625,13 +626,13 @@ def main():
 
     try:
         hax.check_ip()
-        hax.sonar_search()
+        # hax.sonar_search()
         hax.dnsx_subdomains()
         hax.subfinder()
         hax.gau_unfurl()
         hax.ripgen()
         hax.dnsx_ips()
-        hax.sonar_reverse_dns()
+        # hax.sonar_reverse_dns()
         hax.nrich()
         hax.naabu()
         hax.httpx()

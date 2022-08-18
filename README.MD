@@ -23,8 +23,34 @@ If you don't want to be asked to add the domains you can use the `-y` parameter.
 - Add host header bruteforce tool to discover virtual hosts
 - Add https://github.com/Josue87/AnalyticsRelationships
 - Add https://github.com/0xInfection/LogMePwn
-# Installation
 
+# Docker installation (recommended)
+
+To ensure a successful installation I recommend using HaxUnit with Docker.
+
+It will take a couple minutes the first time.
+
+```bash
+git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
+chmod +x rebuild.sh && ./rebuild.sh
+```
+
+If everything went well, you'll be in the container ready to run HaxUnit:
+```
+[HaxUnit] Installation complete - you can start scanning now.
+root@2de01337lf4a:/app# python3 main.py -d example.com
+```
+
+
+### Updating HaxUnit using Docker 
+If you want to use the latest version of HaxUnit you can use the following command:
+
+```bash
+git pull && ./rebuild.sh
+```
+
+
+# Manual installation
 
 Requirements
 - `python3` (>=3.8)
@@ -39,7 +65,8 @@ Clone repository, install python requirements and automatically install all tool
 git clone https://github.com/Bandit-HaxUnit/haxunit
 cd haxunit
 python3 -m pip install -r requirements.txt
-python3 main.py --install
+chmod +x install.sh
+./install.sh
 ```
 
 # Post Installation Instructions
@@ -57,9 +84,6 @@ You can also set it as environment variable in  by renaming `.env.example` to `.
 ```WPSCAN_API_KEY=```
 
 An API token can be obtained by registering an account on <a href="https://wpscan.com/register">WPScan.com</a>.
-
-# Docker
-Not available yet - the installation is easy however.
 
 # Usage
 
