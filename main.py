@@ -9,14 +9,17 @@ import urllib3
 
 urllib3.disable_warnings()
 from subprocess import PIPE, Popen
+import os
 from os.path import exists
 from os import mkdir, getenv
 import argparse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
+start_time = time.time()
 
 class Colors:
     HEADER = '\033[95m'
@@ -37,16 +40,18 @@ class HaxUnit:
     all_subdomains_up = []
     timestamp = datetime.now()
 
-    def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken, acu_session, yes_to_all, update,
-                 install_all, resolvers_file, wpscan_api_token):
+    def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
+                 acu_session, yes_to_all, update, install_all, install_acunetix,
+                 resolvers_file, wpscan_api_token):
         self.site = site
         self.verbose = verbose
-        self.quick = True if mode == "quick" else False
+        self.quick = mode == "quick"
         self.python_bin = python_bin
         self.dir_path = dir_path
         self.yes_to_all = yes_to_all
         self.update = update
         self.install_all = install_all
+        self.install_acunetix = install_acunetix
         self.resolvers_file = resolvers_file
         self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
         self.acunetix_threshold = int(getenv("ACUNETIX_THRESHOLD", 30))
@@ -84,7 +89,10 @@ class HaxUnit:
 
     @staticmethod
     def print(title: str = "", text: str = "", color_type="") -> None:
-        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{Colors.OK}{title}{Colors.RESET}] {color_type}{text}{Colors.RESET}")
+        elapsed_time = time.time() - start_time
+        time_running = time.strftime("%M:%S", time.gmtime(elapsed_time))
+
+        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{time_running}] [{Colors.OK}{title}{Colors.RESET}] {color_type}{text}{Colors.RESET}")
 
     def cmd(self, cmd: str) -> str:
         cmd = " ".join(cmd.split())
@@ -105,6 +113,7 @@ class HaxUnit:
             return True
         return True if input(question).lower() in self.yes_answers else False
 
+
     def read(self, file_name: str, text: bool = False) -> (str, list):
         try:
             if text:
@@ -122,8 +131,6 @@ class HaxUnit:
             all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _])
             f.write(all_subdomains_text)
 
-    def nrich(self) -> None:
-        self.cmd(f"nrich {self.dir_path}/dnsx_ips.txt > {self.dir_path}/nrich_result.txt")
 
     def httpx(self) -> None:
         self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15")
@@ -145,11 +152,12 @@ class HaxUnit:
             self.print("Naabu", "all_subdomains.txt is empty - skipping")
         else:
             self.cmd(f"""
-                sudo naabu -l {self.dir_path}/dnsx_ips.txt
+                naabu -l {self.dir_path}/all_subdomains.txt
                  -c 100 {'' if self.verbose else '-silent'}
-                 -no-color
-                 -exclude-cdn
-                 -p 80,81,300,443,591,593,832,981,1010,1311,2082,2087,2095,2096,2480,3000,3128,3333,4243,4567,4711,4712,4993,5000,5104,5108,5800,6543,7000,7396,7474,8000,8001,8008,8014,8042,8069,8080,8081,8088,8090,8091,8118,8123,8172,8222,8243,8280,8281,8333,8443,8500,8834,8880,8888,8983,9000,9043,9060,9080,9090,9091,9200,9443,9800,9943,9980,9981,12443,16080,18091,18092,20720,28017
+                 -no-color 
+                 -exclude-cdn 
+                 -tp 1000 
+                 -ep 80,443 
                  -o {self.dir_path}/naabu_portscan.txt
             """)
 
@@ -158,21 +166,17 @@ class HaxUnit:
 
     def subfinder(self) -> None:
         self.print("Subfinder", "Process started")
-        self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -nC -all -o {self.dir_path}/subfinder_subdomains.txt")
+        self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -all -o {self.dir_path}/subfinder_subdomains.txt")
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
 
-    def findomain(self) -> None:
-        pass
 
     def nuclei(self) -> None:
         self.cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
-                        -t templates
-                        {"-stats -metrics" if self.verbose else "-silent "} 
+                        {"-stats" if self.verbose else "-silent "} 
                         -o {self.dir_path}/nuclei_result.txt
                         -bulk-size 100
                         -c 100
-                        {'-severity high,critical' if self.quick else ""} 
-                        -no-timestamp
+                        {'-es info' if self.quick else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
                     """)
@@ -183,7 +187,7 @@ class HaxUnit:
         ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
 
         if ip_check != "Y":
-            if self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) does not seem to be a proxy or VPN, would you like to quit? {Colors.RESET}"):
+            if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
                 exit()
 
     @staticmethod
@@ -227,67 +231,10 @@ class HaxUnit:
                 return True
         return False
 
-    def sonar_search(self) -> None:
-        self.print("Sonar search", "Process started")
-
-        try:
-            domain_name = self.site.split(".")[0]
-
-            all_sonar_subdomains = []
-
-            sonar_domains = get(f"https://sonar.omnisint.io/tlds/{domain_name}", timeout=15).json()
-
-            for domain in sonar_domains:
-                sonar_subdomains = get(f"https://sonar.omnisint.io/subdomains/{domain}", timeout=15).text.strip()
-                if sonar_subdomains != "null":
-                    all_sonar_subdomains.extend(loads(sonar_subdomains))
-
-            self.ask_to_add(all_sonar_subdomains, reask_same_tld=True)
-        except:# (ConnectionError, TimeoutError):
-            self.print("Sonar search", "Sonar search failed - skipping", Colors.FAIL)
-
-    def sonar_reverse_dns(self) -> None:
-        self.print("Sonar reverse DNS", "Sonar reverse dns started")
-
-        dnsx_ips = self.read("dnsx_ips.txt")
-
-        use_whole_range = self.ask("Do you want to scan /32 range for all IP addresses (x.x.x.0/32)? ")
-
-        self.domain_name_no_tld = self.site.split(".")[0]
-
-        for ip_address in dnsx_ips:
-            try:
-
-                domain_ip_split = ip_address.split(".")
-                domain_ip_range = f"{domain_ip_split[0]}.{domain_ip_split[1]}.{domain_ip_split[2]}.0/32"
-
-                self.print("Sonar reverse DNS", f"Domain IP: {ip_address}\n")
-
-                reverse_dns_domains = get(f"https://sonar.omnisint.io/reverse/{domain_ip_range if use_whole_range else ip_address}").json()
-                if reverse_dns_domains:
-                    if use_whole_range:
-                        all_domains = []
-                        for ip in reverse_dns_domains:
-                            all_domains.extend(reverse_dns_domains[ip])
-                        reverse_dns_domains = list(set(all_domains))
-
-                    reverse_dns_domains = self.remove_unwanted_domains(reverse_dns_domains)
-
-                    if not self.ask_to_add(reverse_dns_domains):
-                        containing_domain = list(set([_ for _ in reverse_dns_domains if self.domain_name_no_tld in _]))
-
-                        if containing_domain:
-                            print()
-                            for d in containing_domain:
-                                print(d)
-
-                            self.ask_to_add(containing_domain)
-            except:# (ConnectionError, TimeoutError):
-                self.print("Sonar reverse DNS", "Sonar reverse dns failed - skipping", Colors.FAIL)
 
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-10000.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
         if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
@@ -327,13 +274,12 @@ class HaxUnit:
         self.ask_to_add(self.read("dnsx_result.txt"))
 
     def install_acunetix(self) -> None:
-        if not exists("acunetix_docker"):
-            self.print("Acunetix", "Installing Acunetix Docker - may take a few minutes.")
-            self.cmd("bash <(curl -skm 10 https://www.fahai.org/aDisk/Awvs/check.sh) xrsec/awvs")
+        self.print("Acunetix", "Installing Acunetix Docker - may take a few minutes.")
+        self.cmd("bash <(curl -sLk https://raw.githubusercontent.com/Bandit-HaxUnit/acunetix23/main/check.sh) vhae044/acun24.4"),
 
-            self.print("Acunetix", "Installed successfully - available at https://localhost:3443/", Colors.SUCCESS)
-            self.print("Acunetix", "Username: awvs@awvs.lan", Colors.SUCCESS)
-            self.print("Acunetix", "Password: Awvs@awvs.lan", Colors.SUCCESS)
+        self.print("Acunetix", "Installed successfully - available at https://localhost:3443/", Colors.SUCCESS)
+        self.print("Acunetix", "Username: vhae04@gmail.com", Colors.SUCCESS)
+        self.print("Acunetix", "Password: Vhae@04", Colors.SUCCESS)
 
     def acunetix(self) -> None:
 
@@ -422,8 +368,9 @@ class HaxUnit:
                 self.print("Acunetix", f"Scan(s) started!")
 
     def gau_unfurl(self) -> None:
-        self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
-        self.ask_to_add(self.read("gau_unfurl_domains.txt"))
+        if not self.quick:
+            self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
+            self.ask_to_add(self.read("gau_unfurl_domains.txt"))
 
     def ripgen(self):
         self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > {self.dir_path}/ripgen_result.txt")
@@ -435,7 +382,7 @@ class HaxUnit:
             filename = wp_domain.replace("https://", "").replace("http://", "").replace(".", "_").replace("/", "").replace(":", "_").strip()
             self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
 
-        self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $9'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
+        self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $11'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
         wordpress_domains = self.read("wordpress_domains.txt")
 
         if wordpress_domains:
@@ -448,143 +395,72 @@ class HaxUnit:
                 with ThreadPoolExecutor(max_workers=5) as pool:
                     pool.map(single_wpscan, wordpress_domains)
 
-    def install_nrich(self) -> None:
-        for cmd in (
-                "wget https://gitlab.com/api/v4/projects/33695681/packages/generic/nrich/latest/nrich_latest_amd64.deb --quiet",
-                "sudo dpkg -i nrich_latest_amd64.deb",
-                "rm nrich_latest_amd64.deb",
-        ):
-            self.cmd(cmd)
 
     def install_wpscan(self):
         self.cmd("docker pull wpscanteam/wpscan")
 
-    def install_findomain(self):
-        for cmd in (
-            "wget https://github.com/Findomain/Findomain/releases/download/8.2.0/findomain-linux.zip",
-            "unzip findomain-linux.zip",
-            "chmod +x findomain",
-            "sudo mv findomain /usr/local/bin"
-        ):
-            self.cmd(cmd)
-
-
-    def install(self, name, download, file, binary, tar_gz=False):
-        if not exists(f"tools/{name}") or self.update:
-            for text, cmd in (
-                    (f"Downloading {name}", f"wget {download} --quiet"),
-                    ("Extracting tar.gz", f"tar xf {file}") if tar_gz else ("Extracting zip", f"unzip {file}"),
-                    (f"Moving {name} to bin", f"sudo mv {binary} /usr/local/bin/{name}") if name != "getau" else (f"Moving {name} to bin", f"sudo mv {binary} /usr/local/bin/getau"),
-                    ("Cleanup", f"rm -f {file} README.md LICENSE.md LICENSE"),
-                    ("-", f"touch tools/{name}")
-            ):
-                if text and cmd:
-                    self.print("Installer", f"{name} - {text}")
-                    self.cmd(cmd)
-
-            if name == "nuclei":
-                self.cmd("nuclei -update-templates -update-directory templates")
-                self.cmd("nuclei --update")
 
     def install_ripgen(self):
         for rg_cmd in (
-            "apt remove rustc -y",
-            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+            "sudo apt remove rustc -y",
+            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh -s -- -y",
+            "sudo apt install cargo -y",
+            "cargo install ripgen",
+            'echo "export PATH=$PATH:$HOME/.cargo/bin" >> ~/.bashrc',
         ):
             self.cmd(rg_cmd)
 
     def install_all_tools(self):
 
-        self.install_nrich()
-        # self.install_acunetix()
-        # self.install_findomain()
         self.install_ripgen()
         self.install_wpscan()
 
-        # for cmd_tool in (
-        #         "go get github.com/projectdiscovery/httpx/cmd/httpx@latest",
-        #         "go get github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
-        #         "go get github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
-        #         "go get github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
-        #         "go get github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest",
-        #         "go get github.com/lc/gau/v2/cmd/gau@latest",
-        #         "go get github.com/tomnomnom/unfurl",
-        # ):
-        #     self.cmd(cmd_tool)
-        # sudo ln -s ~/go/bin/httpx /usr/sbin/httpx
+        if self.install_acunetix:
+            self.install_acunetix()
 
-        self.install(
-            name="httpx",
-            download="https://github.com/projectdiscovery/httpx/releases/download/v1.2.4/httpx_1.2.4_linux_amd64.zip",
-            file="httpx_1.2.4_linux_amd64.zip",
-            binary="httpx"
-        )
+        self.print("Installer", "Installing gau")
+        for text, cmd in (
+                (f"Downloading gau", f"wget https://github.com/lc/gau/releases/download/v2.2.3/gau_2.2.3_linux_amd64.tar.gz --quiet"),
+                ("Extracting tar.gz", f"tar xf gau_2.2.3_linux_amd64.tar.gz"),
+                (f"Moving gau to bin", f"sudo mv gau /usr/local/bin/getau"),
+                ("Cleanup", f"rm -f gau_2.2.3_linux_amd64.tar.gz README.md LICENSE.md LICENSE")
+        ):
+            if text and cmd:
+                self.cmd(cmd)
 
-        self.install(
-            name="naabu",
-            download="https://github.com/projectdiscovery/naabu/releases/download/v2.1.0/naabu_2.1.0_linux_amd64.zip",
-            file="naabu_2.1.0_linux_amd64.zip",
-            binary="naabu"
-        )
-
-        self.install(
-            name="subfinder",
-            download="https://github.com/projectdiscovery/subfinder/releases/download/v2.5.3/subfinder_2.5.3_linux_amd64.zip",
-            file="subfinder_2.5.3_linux_amd64.zip",
-            binary="subfinder"
-        )
-
-        self.install(
-            name="nuclei",
-            download="https://github.com/projectdiscovery/nuclei/releases/download/v2.7.6/nuclei_2.7.6_linux_amd64.zip",
-            file="nuclei_2.7.6_linux_amd64.zip",
-            binary="nuclei"
-        )
-
-        self.install(
-            name="dnsx",
-            download="https://github.com/projectdiscovery/dnsx/releases/download/v1.1.0/dnsx_1.1.0_linux_amd64.zip",
-            file="dnsx_1.1.0_linux_amd64.zip",
-            binary="dnsx"
-        )
-
-        self.install(
-            name="interactsh",
-            download="https://github.com/projectdiscovery/interactsh/releases/download/v1.0.6/interactsh-client_1.0.6_Linux_x86_64.zip",
-            file="interactsh-client_1.0.6_Linux_x86_64.zip",
-            binary="interactsh-client"
-        )
-
-        self.install(
-            name="getau",
-            download="https://github.com/lc/gau/releases/download/v2.1.2/gau_2.1.2_linux_amd64.tar.gz",
-            file="gau_2.1.2_linux_amd64.tar.gz",
-            binary="gau",
-            tar_gz=True
-        )
-
-        self.install(
-            name="unfurl",
-            download="https://github.com/tomnomnom/unfurl/releases/download/v0.4.3/unfurl-linux-amd64-0.4.3.tgz",
-            file="unfurl-linux-amd64-0.4.3.tgz",
-            binary="unfurl",
-            tar_gz=True
-        )
+        for cmd_tool in (
+                "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest",
+                "go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+                "sudo apt install -y libpcap-dev",
+                "go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+                "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+                "go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+                "nuclei -update-templates",
+                "go install github.com/lc/gau/v2/cmd/gau@latest",
+                "go install github.com/tomnomnom/unfurl@latest",
+        ):
+            self.cmd(cmd_tool)
 
 
 def script_init(args) -> str:
     """Create scans folder, workspace and the current scan folder"""
 
-    if not exists("scans"):
-        mkdir("scans")
+    if not args.domain:
+        return ""
 
-    if not exists("tools"):
-        mkdir("tools")
+    # Create 'scans' folder if it doesn't exist
+    scans_folder = "scans"
+    if not exists(scans_folder):
+        mkdir(scans_folder)
 
-    if not exists(f"scans/{args.domain}"):
-        mkdir(f"scans/{args.domain}")
+    # Create domain-specific folder if it doesn't exist
+    domain_folder = os.path.join(scans_folder, args.domain)
+    if not exists(domain_folder):
+        mkdir(domain_folder)
 
-    dir_path = f"scans/{args.domain}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    # Create timestamped scan folder
+    scan_folder = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    dir_path = os.path.join(domain_folder, scan_folder)
     mkdir(dir_path)
 
     return dir_path
@@ -592,18 +468,19 @@ def script_init(args) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description='HaxUnit')
-    parser.add_argument('-d', '--domain', type=str, help='the website to recon: example.com', required=False)
-    parser.add_argument('-m', '--mode', type=str, help='you can set to scan `quick` or `extensive`', default='extensive')
-    parser.add_argument('-v', '--verbose', type=bool, help='print more information', default=True)
+    parser.add_argument('-d', '--domain', type=str, help='the website to recon: example.com')
+    parser.add_argument('-m', '--mode', type=str, choices=['quick', 'extensive'], help='set scan mode', default='quick')
+    parser.add_argument('-v', '--verbose', action='store_true', help='print more information', default=True)
     parser.add_argument('-b', '--bin', type=str, help='set which python bin to use', default='python3')
-    parser.add_argument('-is', '--iserver', type=str, help='interactsh server url for self-hosted instance', default='')
+    parser.add_argument('-is', '--iserver', type=str, help='interactsh server URL for self-hosted instance', default='')
     parser.add_argument('-it', '--itoken', type=str, help='authentication token for self-hosted interactsh server', default='')
-    parser.add_argument('-acu', '--acunetix', type=str, help='', default='')
-    parser.add_argument('-y', '--yes', type=bool, help='yes to all', default=False)
-    parser.add_argument('-u', '--update', type=bool, help='update all tools', default=False)
-    parser.add_argument('-i', '--install', help='install all tools', default=False, action="store_true")
-    parser.add_argument('-r', '--resolvers', help='dnsx - list of resolvers to use (file or comma separated)', default='')
-    parser.add_argument('--wpscan-api-token', help='The WPScan API Token to display vulnerability data', default='')
+    parser.add_argument('-acu', '--acunetix', type=str, help='Acunetix API key', default='')
+    parser.add_argument('-y', '--yes', action='store_true', help='yes to all')
+    parser.add_argument('-u', '--update', action='store_true', help='update all tools')
+    parser.add_argument('-i', '--install', action='store_true', help='install all tools')
+    parser.add_argument('-ia', '--install_acunetix', action='store_true', help='install Acunetix')
+    parser.add_argument('-r', '--resolvers', type=str, help='dnsx - list of resolvers to use (file or comma separated)', default='')
+    parser.add_argument('--wpscan-api-token', type=str, help='The WPScan API Token to display vulnerability data', default='')
 
     args = parser.parse_args()
     dir_path = script_init(args)
@@ -620,24 +497,23 @@ def main():
         yes_to_all=args.yes,
         update=args.update,
         install_all=args.install,
+        install_acunetix=args.install_acunetix,
         resolvers_file=args.resolvers,
         wpscan_api_token=args.wpscan_api_token,
     )
 
     try:
         hax.check_ip()
-        # hax.sonar_search()
         hax.dnsx_subdomains()
         hax.subfinder()
         hax.gau_unfurl()
         hax.ripgen()
         hax.dnsx_ips()
-        # hax.sonar_reverse_dns()
-        hax.nrich()
         hax.naabu()
         hax.httpx()
         hax.wpscan()
-        hax.acunetix()
+        if args.acunetix:
+            hax.acunetix()
         hax.nuclei()
 
         print(f"\ncd {dir_path}\n")

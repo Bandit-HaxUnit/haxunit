@@ -12,62 +12,125 @@
 </p>
 
 # Intro
-HaxUnit combines multiple active and passive subdomain enumeration tools and port scanning tools with vulnerability discovery tools.
 
-For each subdomain enumeration tool you'll be prompted to add the new discovered subdomains to the list.</br>
-If you see unrelated subdomains you can decline and you'll be asked again with only subdomains of the same domain as the input.
+HaxUnit is a Python script designed for comprehensive reconnaissance and security assessment of web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.
 
-If you don't want to be asked to add the domains you can use the `-y` parameter.
+## Features
 
-# To-do
-- Add host header bruteforce tool to discover virtual hosts
-- Add https://github.com/Josue87/AnalyticsRelationships
-- Add https://github.com/0xInfection/LogMePwn
+- **Subdomain Enumeration**: Uses tools like Subfinder, DNSx, and custom bruteforce methods.
+- **Port Scanning**: Utilizes Naabu for fast port scanning across discovered subdomains.
+- **Vulnerability Scanning**: Integrates Nuclei for detecting security issues across web applications.
+- **WordPress Scanning**: Uses WPScan to identify vulnerabilities in WordPress installations.
+- **Acunetix Integration**: Provides optional integration with Acunetix for web application security scanning.
 
-# Docker installation (recommended)
+# Install HaxUnit
 
-To ensure a successful installation I recommend using HaxUnit with Docker.
+Make sure you have the following software installed on your system:
 
-It will take a couple minutes the first time.
-
-```bash
-git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
-chmod +x rebuild.sh && ./rebuild.sh
-```
-
-If everything went well, you'll be in the container ready to run HaxUnit:
-```
-[HaxUnit] Installation complete - you can start scanning now.
-root@2de01337lf4a:/app# python3 main.py -d example.com
-```
-
-
-### Updating HaxUnit using Docker 
-If you want to use the latest version of HaxUnit you can use the following command:
-
-```bash
-git pull && ./rebuild.sh
-```
-
-
-# Manual installation
-
-Requirements
 - `python3` (>=3.8)
-- `go` (>=1.17) 
-- `unzip` (used until I implement `go get` soon to install tools)
-- `docker`
+- `go` (>=1.122) 
+- `docker.io` (>=20.10.7)
 
-You can install Acunetix by uncommenting `self.install_acunetix()`
-
-Clone repository, install python requirements and automatically install all tools:
+Clone the repository, install Python requirements, and automatically install all necessary tools:
 ```commandline
-git clone https://github.com/Bandit-HaxUnit/haxunit
-cd haxunit
+git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
 python3 -m pip install -r requirements.txt
-chmod +x install.sh
-./install.sh
+python3 main.py --install
 ```
+
+If everything is installed correctly you should see the following output:
+```commandline
+[HaxUnit] [Init] All tools are successfully installed - good luck!
+```
+
+<details>
+  <summary>Docker</summary>
+
+ For a reliable installation, it's recommended to use HaxUnit with Docker.
+ 
+ This initial setup may take a few minutes:
+ 
+ 
+ ```bash
+ git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
+ chmod +x rebuild.sh && ./rebuild.sh
+ ```
+ 
+ Once the installation completes successfully, you'll be inside the Docker container, ready to execute HaxUnit:
+ 
+ ```
+ [HaxUnit] Installation complete - you can start scanning now.
+ root@hostname:/app# python3 main.py -d example.com
+ ```
+  
+</details>
+
+# Usage
+```commandline
+python3 main.py -h
+```
+
+This will display help for the tool. Here are all the switches it supports.
+
+```commandline
+usage: main.py [-h] [-d DOMAIN] [-m {quick,extensive}] [-v] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y]
+               [-u] [-i] [-ia] [-r RESOLVERS] [--wpscan-api-token WPSCAN_API_TOKEN]
+
+options:
+  -h, --help            show this help message and exit
+  -d DOMAIN, --domain DOMAIN
+                        the website to recon: example.com
+  -m {quick,extensive}, --mode {quick,extensive}
+                        set scan mode
+  -v, --verbose         print more information
+  -b BIN, --bin BIN     set which python bin to use
+  -is ISERVER, --iserver ISERVER
+                        interactsh server URL for self-hosted instance
+  -it ITOKEN, --itoken ITOKEN
+                        authentication token for self-hosted interactsh server
+  -acu ACUNETIX, --acunetix ACUNETIX
+                        Acunetix API key
+  -y, --yes             yes to all
+  -u, --update          update all tools
+  -i, --install         install all tools
+  -ia, --install_acunetix
+                        install Acunetix
+  -r RESOLVERS, --resolvers RESOLVERS
+                        dnsx - list of resolvers to use (file or comma separated)
+  --wpscan-api-token WPSCAN_API_TOKEN
+                        The WPScan API Token to display vulnerability data
+ ```
+
+### Examples
+
+Run a quick scan on `example.com`:
+```commandline
+python3 main.py -d example.com
+```
+
+Run a quick scan on `example.com` saying yes to adding domains by default:
+```commandline
+python3 main.py -d example.com -y
+```
+
+Run an extensive scan on `example.com` providing the Acunetix API key and WPScan API token:
+```commandline
+python3 main.py -d example.com -m extensive -acu <acunetix-api-key> --wpscan-api-token <wpscan-api-token> 
+```
+
+### Viewing Results
+
+Results from the scan will be saved in the following directory structure:
+
+```markdown
+scans/
+└── example.com/
+    └── timestamp/
+```
+
+Replace `example.com` with your target domain and `timestamp` with the date and time when the scan was conducted. 
+This structure organizes scan results chronologically under the respective domain folder within the scans directory.
+
 
 # Post Installation Instructions
 
@@ -85,49 +148,17 @@ You can also set it as environment variable in  by renaming `.env.example` to `.
 
 An API token can be obtained by registering an account on <a href="https://wpscan.com/register">WPScan.com</a>.
 
-# Usage
+
+# Acunetix
+
+HaxUnit utilizes Acunetix's REST API to automate group creation and initiate scans.</br>
+
+To generate an API key, visit [https://localhost:3443/#/profile](https://localhost:3443/#/profile).
+
+Pass the obtained API key to `-acu` parameter as follows:
 
 ```commandline
-usage: main.py [-h] [-d DOMAIN] [-m MODE] [-v VERBOSE] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu ACUNETIX] [-y YES] [-u UPDATE] [-i] [-r RESOLVERS]
-               [--wpscan-api-token WPSCAN_API_TOKEN]
-
-HaxUnit
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -d DOMAIN, --domain DOMAIN the website to recon: example.com
-  -m MODE, --mode MODE  you can set to scan `quick` or `extensive`
-  -v VERBOSE, --verbose VERBOSE print more information
-  -b BIN, --bin BIN     set which python bin to use
-  -is ISERVER, --iserver ISERVER interactsh server url for self-hosted instance
-  -it ITOKEN, --itoken ITOKEN authentication token for self-hosted interactsh server
-  -acu ACUNETIX, --acunetix ACUNETIX
-  -y YES, --yes YES     yes to all
-  -u UPDATE, --update UPDATE update all tools
-  -i, --install         install all tools
-  -r RESOLVERS, --resolvers RESOLVERS dnsx - list of resolvers to use (file or comma separated)
-  --wpscan-api-token WPSCAN_API_TOKEN The WPScan API Token to display vulnerability data
-```
-
-# Running HaxUnit
-Run a scan on `example.com`
-```commandline
-python3 main.py -d example.com
-```
-
-Results are saved in `scans/example.com/timestamp/`
-
-# Using Acunetix
-
-HaxUnit uses Acunetix's REST API to automatically create groups and start scans.</br>
-You can select to scan all found subdomains or only the main domain.
-
-To generate an API key go to `https://localhost:3443/#/profile`
-
-Pass this API key to `-acu` like the following:
-
-```commandline
-python3 main.py -d example.com -acu 2940ad8c0a5b3df4d7028d5f3c06e936c0a42bb5a50d24c69a64e81cd21d62b12
+python3 main.py -d example.com -acu <acunetix-api-key>
 ```
 
 You can also set it as environment variable in `.env`</br>
@@ -139,18 +170,35 @@ You can also set it as environment variable in `.env`</br>
 </h1>
 
 
+<details>
+  <summary>Installing Acunetix</summary>
+
+ To install Acunetix, execute the following command:
+
+```commandline
+python3 main.py --install_acunetix
+```
+
+This will download and install the Acunetix container. </br>
+Once the installation is complete, you can start using Acunetix with HaxUnit.
+
+Acunetix can be accessed at https://localhost:3443. <br>Use the following default credentials to log in:
+```commandline
+Username: vhae04@gmail.com
+Password: Vhae@04
+```
+  
+</details>
+
 # Functions
 
 | Function          | Type                            | Description                                                                                           |
 |-------------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
-| sonar_search      | Subdomain discovery             | Use omnisint (FDNS) to search for other TLD's with same name                                          |
 | dnsx_subdomains   | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
 | subfinder         | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
 | gau_unfurl        | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
 | ripgen            | Subdomain discovery             | Generate and test subdomain permutations                                                              |
  | dnsx_ips          | Get IP addresses                | Use dnsx to fetch A records                                                                           |
-| sonar_reverse_dns | Subdomain discovery             | Find subdomains using reverse dns search from omnisint (FDNS)                                         |
-| nrich             | Port scan + Subdomain discovery | Faster alternative to active port scanning to naabu                                                   | 
 | naabu             | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
 | httpx             | Subdomain list validation       | Check all found subdomains if they are active                                                         |
 | wpscan            | Vulnerability discovery         | WordPress Security Scanner                                                                            |
@@ -164,4 +212,4 @@ You can also set it as environment variable in `.env`</br>
 </h1>
 
 # Credits
-Huge shoutout to https://github.com/projectdiscovery for all their amazing tools.
+Special thanks to the team at https://github.com/projectdiscovery for their incredible range of tools.

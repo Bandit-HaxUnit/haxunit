@@ -17,7 +17,7 @@ echo "[HaxUnit] Running container $CONTAINERNAME"
 docker run -d -t -v /var/run/docker.sock:/var/run/docker.sock --name $CONTAINERNAME $IMAGE || exit 1
 
 echo "[HaxUnit] Started installation process"
-docker exec -it $CONTAINERNAME /bin/bash -c "chmod +x install.sh && ./install.sh"
+docker exec -it $CONTAINERNAME /bin/bash -c "python3 main.py --install"
 
 clear
 echo "[HaxUnit] Installation complete - you can start scanning now."
