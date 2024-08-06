@@ -176,6 +176,7 @@ class HaxUnit:
                         -o {self.dir_path}/nuclei_result.txt
                         -bulk-size 100
                         -c 100
+                        -no-httpx
                         {'-es info' if self.quick else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
@@ -234,7 +235,7 @@ class HaxUnit:
 
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -silent -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
         if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):

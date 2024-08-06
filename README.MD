@@ -27,24 +27,68 @@ HaxUnit is a Python script designed for comprehensive reconnaissance and securit
 
 Make sure you have the following software installed on your system:
 
-- `python3` (>=3.8)
-- `go` (>=1.122) 
-- `docker.io` (>=20.10.7)
+- `python3` (>=3.10)
+- `go` (>=1.122)
 
-Clone the repository, install Python requirements, and automatically install all necessary tools:
-```commandline
-git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
-python3 -m pip install -r requirements.txt
-python3 main.py --install
-```
 
+
+1. **Clone the Repository:**
+
+    Open a terminal and run the following command to clone the repository and navigate into the project directory:
+    ```sh
+    git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
+    ```
+
+2. **Install `python3.11-venv` (if needed):**
+
+    If you don't have the `venv` module installed, you may need to install it. Run one of the following commands depending on your Python version:
+    ```sh
+    sudo apt update
+    sudo apt install python3.11-venv
+    ```
+    Or for Python 3.10:
+    ```sh
+    sudo apt update
+    sudo apt install python3.10-venv
+    ```
+
+3. **Create a Virtual Environment:**
+
+    Create a virtual environment named `haxunit-venv`:
+    ```sh
+    python3 -m venv haxunit-venv
+    ```
+
+4. **Activate the Virtual Environment:**
+
+    Activate the virtual environment using the following command:
+    ```sh
+    source haxunit-venv/bin/activate
+    ```
+
+    Note: To deactivate the virtual environment later, you can simply run `deactivate`.
+
+5. **Install the Required Packages:**
+
+    With the virtual environment activated, install the necessary packages:
+    ```sh
+    python3 -m pip install -r requirements.txt
+    ```
+
+6. **Run the Installation Script:**
+
+    Finally, run the main script with the `--install` flag:
+    ```sh
+    python3 main.py --install
+    ```
+   
 If everything is installed correctly you should see the following output:
 ```commandline
 [HaxUnit] [Init] All tools are successfully installed - good luck!
 ```
 
 <details>
-  <summary>Docker</summary>
+  <summary>Docker (easy)</summary>
 
  For a reliable installation, it's recommended to use HaxUnit with Docker.
  
