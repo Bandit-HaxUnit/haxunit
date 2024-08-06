@@ -28,9 +28,8 @@ HaxUnit is a Python script designed for comprehensive reconnaissance and securit
 Make sure you have the following software installed on your system:
 
 - `python3` (>=3.10)
-- `go` (>=1.122)
-
-
+- `go` (>=1.122) 
+- `docker.io` (>=20.10.7)
 
 1. **Clone the Repository:**
 
