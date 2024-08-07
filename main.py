@@ -17,6 +17,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 import time
+from urllib.parse import urlparse
 
 load_dotenv()
 start_time = time.time()
@@ -187,9 +188,10 @@ class HaxUnit:
 
     def check_ip(self) -> None:
         ipaddress = get("http://ifconfig.me/ip").text
-        self.print("IP Address", ipaddress)
         ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
+
         ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
+        self.print("IP Address", ipaddress)
 
         if ip_check != "Y":
             if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
@@ -238,7 +240,7 @@ class HaxUnit:
 
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt {'--stats' if not self.quick else ''} -wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8")
+        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt {'--stats' if not self.quick else ''} -wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8 -stats")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
         if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
@@ -421,8 +423,13 @@ class HaxUnit:
                     f.write(add_emojis_and_format(nuclei_result))
 
                 self.cmd(f"notify -i {self.dir_path}/nuclei_result_formatted.txt -silent {use_local_config}")
+
+                if any(sev in nuclei_result for sev in ['high', 'critical']):
+                    self.cmd(f'echo "⚠️ High severity issues found @channel" | notify -silent {use_local_config}')
+                elif any(sev in nuclei_result for sev in ['low', 'medium']):
+                    self.cmd(f'echo "⚠️ Medium/Low severity issues found" | notify -silent {use_local_config}')
             else:
-                self.cmd(f'echo "No results" | notify -silent {use_local_config}')
+                self.cmd(f'echo "✅ No results" | notify -silent {use_local_config}')
 
     def wpscan(self):
 
@@ -528,6 +535,10 @@ def main():
     parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
 
     args = parser.parse_args()
+
+    if args.domain:
+        args.domain = urlparse(args.domain).netloc
+
     dir_path = script_init(args)
 
     hax = HaxUnit(
