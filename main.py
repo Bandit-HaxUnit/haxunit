@@ -544,7 +544,8 @@ def main():
     args = parser.parse_args()
 
     if args.domain:
-        args.domain = urlparse(args.domain).netloc
+        parse_result = urlparse(args.domain)
+        args.domain = parse_result.netloc if parse_result.netloc else parse_result.path
 
     dir_path = script_init(args)
 
