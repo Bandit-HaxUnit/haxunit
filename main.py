@@ -65,7 +65,7 @@ class HaxUnit:
         self.use_notify = use_notify
         self.cloud_upload = cloud_upload
 
-
+        self.wp_result_filenames = []
 
         self.cmd("clear")
 
@@ -181,6 +181,7 @@ class HaxUnit:
                         -bulk-size 100
                         -c 100
                         -no-httpx
+                        -ept dns,ssl -etags detect,headers,waf
                         {'-cloud-upload' if self.cloud_upload else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
@@ -431,11 +432,17 @@ class HaxUnit:
             else:
                 self.cmd(f'echo "✅ No results" | notify -silent {use_local_config}')
 
+            if self.wp_result_filenames:
+                self.cmd(f'echo "[$(date +"%Y-%m-%d")] WPScan results:" | notify -silent {use_local_config}')
+                for wp_result_filename in self.wp_result_filenames:
+                    self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -silent {use_local_config}")
+
     def wpscan(self):
 
         def single_wpscan(wp_domain):
             filename = wp_domain.replace("https://", "").replace("http://", "").replace(".", "_").replace("/", "").replace(":", "_").strip()
             self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
+            self.wp_result_filenames.append(f"wpscan_{filename}.txt")
 
         self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $11'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
         wordpress_domains = self.read("wordpress_domains.txt")
@@ -537,7 +544,8 @@ def main():
     args = parser.parse_args()
 
     if args.domain:
-        args.domain = urlparse(args.domain).netloc
+        parse_result = urlparse(args.domain)
+        args.domain = parse_result.netloc if parse_result.netloc else parse_result.path
 
     dir_path = script_init(args)
 
