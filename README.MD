@@ -202,7 +202,7 @@ Clone this repository into the `dags` directory of your Apache Airflow installat
 ```
 2. **Configure Notifications**:</br>
 To receive notifications upon completion, rename `notify-config.yaml.example` to `notify-config.yaml`.</br>
-</br>
+
 Example configuration for Slack notifications:
 
 ```bash
