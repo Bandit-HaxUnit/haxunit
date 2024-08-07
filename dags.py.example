@@ -14,13 +14,13 @@ default_args = {
 with DAG(
     'automate_haxunit',
     default_args=default_args,
-    description='Run Haxunit - Report results',
+    description='HaxUnit example.com - Report results to slack',
     schedule_interval="0 0 * * *", # at midnight every day
     start_date=datetime(2024, 1, 1),
     catchup=False,
-) as ETL:
+) as HaxUnit:
 
-    run_pentest_example_com = BashOperator(
-        task_id='run_pentest_example_com',
+    run_haxunit_example_com = BashOperator(
+        task_id='run_haxunit_example_com',
         bash_command='docker exec -it haxunit python3 main.py -d example.com --cloud-upload -y --use-notify -m extensive',
     )
