@@ -13,8 +13,9 @@
 
 # 📘Intro
 
-HaxUnit is a Python script designed for comprehensive reconnaissance and security assessment of web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.
-
+HaxUnit is a Python script designed for comprehensive reconnaissance and security assessment of web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.</br>
+</br>
+HaxUnit is focused on simplicity and aims to be the best and most complete solution for web security assessments.
 ## ✨ Features
 
 - **Subdomain Enumeration**: Uses tools like Subfinder, DNSx, and custom bruteforce methods.
@@ -29,10 +30,25 @@ HaxUnit is a Python script designed for comprehensive reconnaissance and securit
  
  This initial setup may take a few minutes:
  
- 
+1. **Clone the Repository:**
+
  ```bash
- git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
- chmod +x rebuild-compose.sh && ./rebuild-compose.sh
+git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit 
+```
+
+2. **Rename `.env.example` to `.env` and fill in the API keys.**
+
+```commandline
+ACUNETIX_THRESHOLD=30
+ACUNETIX_API_KEY=
+NUCLEI_API_KEY=
+WPSCAN_API_KEY=
+```
+
+3. **Build and Run Docker Compose:**
+
+```bash
+chmod +x rebuild-compose.sh && ./rebuild-compose.sh
  ```
  
  Once the installation completes successfully, you'll be inside the Docker container, ready to execute HaxUnit:
@@ -175,17 +191,6 @@ scans/
 Replace `example.com` with your target domain and `timestamp` with the date and time when the scan was conducted. 
 This structure organizes scan results chronologically under the respective domain folder within the scans directory.
 
-
-# 🔧 Post Installation Instructions
-
-Rename `.env.example` to `.env` and fill in the API keys.
-
-```commandline
-ACUNETIX_THRESHOLD=30
-ACUNETIX_API_KEY=
-NUCLEI_API_KEY=
-WPSCAN_API_KEY=
-```
 
 # 🤖 Automate using Apache Airflow
 
