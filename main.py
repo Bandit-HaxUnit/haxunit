@@ -189,6 +189,7 @@ class HaxUnit:
         ipaddress = get("http://ifconfig.me/ip").text
         self.print("IP Address", ipaddress)
         ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
+        ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
 
         if ip_check != "Y":
             if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
