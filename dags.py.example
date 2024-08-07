@@ -1,0 +1,26 @@
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime, timedelta
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+with DAG(
+    'automate_haxunit',
+    default_args=default_args,
+    description='Run Haxunit - Report results',
+    schedule_interval="0 0 * * *", # at midnight every day
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+) as ETL:
+
+    run_pentest_example_com = BashOperator(
+        task_id='run_pentest_example_com',
+        bash_command='docker exec -it haxunit python3 main.py -d example.com --cloud-upload -y --use-notify -m extensive',
+    )
