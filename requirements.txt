@@ -1,3 +1,5 @@
-requests>=2.32.0
-urllib3~=1.26.7
-python-dotenv==0.19.2
+urllib3~=2.2.2
+requests~=2.32.3
+python-dotenv~=1.0.1
+rich~=13.7.1
+apache-airflow~=2.9.3

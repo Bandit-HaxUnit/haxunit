@@ -41,8 +41,8 @@ class HaxUnit:
     timestamp = datetime.now()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
-                 acu_session, yes_to_all, update, install_all, install_acunetix,
-                 resolvers_file, wpscan_api_token):
+                 use_acunetix, yes_to_all, update, install_all,
+                 wpscan_api_token, use_notify, cloud_upload):
         self.site = site
         self.verbose = verbose
         self.quick = mode == "quick"
@@ -51,15 +51,20 @@ class HaxUnit:
         self.yes_to_all = yes_to_all
         self.update = update
         self.install_all = install_all
-        self.install_acunetix = install_acunetix
-        self.resolvers_file = resolvers_file
+
         self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
-        self.acunetix_threshold = int(getenv("ACUNETIX_THRESHOLD", 30))
+
+        self.acunetix_threshold = 30
+        self.use_acunetix = use_acunetix
+        self.acunetix_api_key = getenv("ACUNETIX_API_KEY")
 
         self.iserver = iserver
         self.itoken = itoken
 
-        self.acu_session = acu_session or getenv("ACUNETIX_API_KEY")
+        self.use_notify = use_notify
+        self.cloud_upload = cloud_upload
+
+
 
         self.cmd("clear")
 
@@ -72,7 +77,7 @@ class HaxUnit:
  | |  | | (_| |>  <| |__| | | | | | |_ 
  |_|  |_|\__,_/_/\_\\____/|_| |_|_|\__|
 
-                                       v3.4 by the butcher""")
+                                       v3.5 by the butcher""")
 
         print()
 
@@ -131,9 +136,8 @@ class HaxUnit:
             all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _])
             f.write(all_subdomains_text)
 
-
     def httpx(self) -> None:
-        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15")
+        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
 
         awk_cmd_2 = """awk -F "," {'print $11'} | awk -F ":" {'print $1 ":" $2'} """
         self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
@@ -169,7 +173,6 @@ class HaxUnit:
         self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -all -o {self.dir_path}/subfinder_subdomains.txt")
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
 
-
     def nuclei(self) -> None:
         self.cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
                         {"-stats" if self.verbose else "-silent "} 
@@ -177,7 +180,7 @@ class HaxUnit:
                         -bulk-size 100
                         -c 100
                         -no-httpx
-                        {'-es info' if self.quick else ""} 
+                        {'-cloud-upload' if self.cloud_upload else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
                     """)
@@ -232,10 +235,9 @@ class HaxUnit:
                 return True
         return False
 
-
     def dnsx_subdomains(self) -> None:
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt -wd {self.site} -o {self.dir_path}/dnsx_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt {'--stats' if not self.quick else ''} -wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
         if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
@@ -249,7 +251,7 @@ class HaxUnit:
                     self.print("DNSx", f"Iteration: {iteration}")
 
                     def dnsx_brute(subdomain):
-                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt {f'-r {self.resolvers_file}' if self.resolvers_file else ''}")
+                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt -r 8.8.8.8")
 
                     file_to_read = "dnsx_result.txt" if not iteration else f"dnsx_recursive_iter_{iteration - 1}_result.txt"
                     self.print("DNSx", f"Reading file: {file_to_read}")
@@ -270,17 +272,10 @@ class HaxUnit:
 
     def dnsx_ips(self) -> None:
         self.print("DNSx", "Get A records")
-        self.cmd(f"dnsx -l {self.dir_path}/all_subdomains.txt -silent -a -resp-only -silent | sort -u > {self.dir_path}/dnsx_ips.txt")
+        self.cmd(f"dnsx -l {self.dir_path}/all_subdomains.txt"
+                 f" -a -resp-only -silent | sort -u > {self.dir_path}/dnsx_ips.txt")
 
-        self.ask_to_add(self.read("dnsx_result.txt"))
-
-    def install_acunetix(self) -> None:
-        self.print("Acunetix", "Installing Acunetix Docker - may take a few minutes.")
-        self.cmd("bash <(curl -sLk https://raw.githubusercontent.com/Bandit-HaxUnit/acunetix23/main/check.sh) vhae044/acun24.4"),
-
-        self.print("Acunetix", "Installed successfully - available at https://localhost:3443/", Colors.SUCCESS)
-        self.print("Acunetix", "Username: vhae04@gmail.com", Colors.SUCCESS)
-        self.print("Acunetix", "Password: Vhae@04", Colors.SUCCESS)
+        # self.ask_to_add(self.read("dnsx_ips.txt"))
 
     def acunetix(self) -> None:
 
@@ -291,12 +286,12 @@ class HaxUnit:
             except ConnectionError:
                 return False
 
-        if self.acu_session and acunetix_up():
+        if self.use_acunetix and self.acunetix_api_key and acunetix_up():
             self.print("Acunetix", "Starting acunetix")
 
             data = {}
-            cookies = {'ui_session': self.acu_session}
-            headers = {'x-auth': self.acu_session, 'Content-Type': 'application/json'}
+            cookies = {'ui_session': self.acunetix_api_key}
+            headers = {'x-auth': self.acunetix_api_key, 'Content-Type': 'application/json'}
 
             print()
             for d in self.all_subdomains_up:
@@ -370,12 +365,63 @@ class HaxUnit:
 
     def gau_unfurl(self) -> None:
         if not self.quick:
-            self.cmd(f"cat {self.dir_path}/all_subdomains.txt | getau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
+            self.cmd(f"cat {self.dir_path}/all_subdomains.txt | gau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
             self.ask_to_add(self.read("gau_unfurl_domains.txt"))
 
     def ripgen(self):
         self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > {self.dir_path}/ripgen_result.txt")
         self.ask_to_add(self.read("ripgen_result.txt"))
+
+    def notify(self):
+        if self.use_notify:
+
+            def get_severity_emoji(severity):
+                severity_mapping = {
+                    'info': '🟢',
+                    'low': '🟡',
+                    'medium': '🟠',
+                    'high': '🔴',
+                    'critical': '🚨',
+                    'unknown': '❓'
+                }
+                return severity_mapping.get(severity.lower(), '❓')
+
+            def transform_label(label):
+                return ' '.join(word.capitalize() for word in label.replace('-', ' ').split())
+
+            def add_emojis_and_format(nuclei_result):
+                formatted_lines = []
+                for line in nuclei_result.strip().split('\n'):
+                    parts = line.split()
+                    if len(parts) < 4:
+                        formatted_lines.append(f"❓ {line}")
+                        continue
+                    label, protocol, severity, rest = parts[0].strip('[]'), parts[1].strip('[]'), parts[2].strip(
+                        '[]'), ' '.join(parts[3:])
+                    label_parts = label.split(':')
+                    label_main = transform_label(label_parts[0])
+                    label_sub = f": {transform_label(label_parts[1])}" if len(label_parts) > 1 else ''
+                    emoji = get_severity_emoji(severity)
+                    formatted_lines.append(f"{emoji} | {label_main}{label_sub} - {protocol.upper()} | {rest}")
+                return '\n'.join(formatted_lines)
+
+            with open(f"{self.dir_path}/nuclei_result.txt", "r") as f:
+                nuclei_result = f.read()
+
+            use_local_config = "-provider-config notify-config.yaml" if exists("notify-config.yaml") else ""
+
+            self.cmd(f'echo "[$(date +"%Y-%m-%d")] Finished scan for these hosts:" | notify -silent {use_local_config}')
+            self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent {use_local_config}")
+
+            self.cmd(f'echo "[$(date +"%Y-%m-%d")] Nuclei results:" | notify -silent {use_local_config}')
+
+            if nuclei_result:
+                with open(f"{self.dir_path}/nuclei_result_formatted.txt", "w", encoding='utf-8') as f:
+                    f.write(add_emojis_and_format(nuclei_result))
+
+                self.cmd(f"notify -i {self.dir_path}/nuclei_result_formatted.txt -silent {use_local_config}")
+            else:
+                self.cmd(f'echo "No results" | notify -silent {use_local_config}')
 
     def wpscan(self):
 
@@ -396,15 +442,14 @@ class HaxUnit:
                 with ThreadPoolExecutor(max_workers=5) as pool:
                     pool.map(single_wpscan, wordpress_domains)
 
-
     def install_wpscan(self):
         self.cmd("docker pull wpscanteam/wpscan")
-
 
     def install_ripgen(self):
         for rg_cmd in (
             "sudo apt remove rustc -y",
             "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh -s -- -y",
+            "export PATH='/root/.cargo/bin:${PATH}'",
             "sudo apt install cargo -y",
             "cargo install ripgen",
             'echo "export PATH=$PATH:$HOME/.cargo/bin" >> ~/.bashrc',
@@ -416,14 +461,11 @@ class HaxUnit:
         self.install_ripgen()
         self.install_wpscan()
 
-        if self.install_acunetix:
-            self.install_acunetix()
-
         self.print("Installer", "Installing gau")
         for text, cmd in (
                 (f"Downloading gau", f"wget https://github.com/lc/gau/releases/download/v2.2.3/gau_2.2.3_linux_amd64.tar.gz --quiet"),
                 ("Extracting tar.gz", f"tar xf gau_2.2.3_linux_amd64.tar.gz"),
-                (f"Moving gau to bin", f"sudo mv gau /usr/local/bin/getau"),
+                (f"Moving gau to bin", f"sudo mv gau /usr/local/bin/gau"),
                 ("Cleanup", f"rm -f gau_2.2.3_linux_amd64.tar.gz README.md LICENSE.md LICENSE")
         ):
             if text and cmd:
@@ -439,6 +481,7 @@ class HaxUnit:
                 "nuclei -update-templates",
                 "go install github.com/lc/gau/v2/cmd/gau@latest",
                 "go install github.com/tomnomnom/unfurl@latest",
+                "go install -v github.com/projectdiscovery/notify/cmd/notify@latest",
         ):
             self.cmd(cmd_tool)
 
@@ -475,13 +518,13 @@ def main():
     parser.add_argument('-b', '--bin', type=str, help='set which python bin to use', default='python3')
     parser.add_argument('-is', '--iserver', type=str, help='interactsh server URL for self-hosted instance', default='')
     parser.add_argument('-it', '--itoken', type=str, help='authentication token for self-hosted interactsh server', default='')
-    parser.add_argument('-acu', '--acunetix', type=str, help='Acunetix API key', default='')
+    parser.add_argument('-acu', '--use-acunetix', action='store_true', help='Acunetix API key', default='')
     parser.add_argument('-y', '--yes', action='store_true', help='yes to all')
     parser.add_argument('-u', '--update', action='store_true', help='update all tools')
     parser.add_argument('-i', '--install', action='store_true', help='install all tools')
-    parser.add_argument('-ia', '--install_acunetix', action='store_true', help='install Acunetix')
-    parser.add_argument('-r', '--resolvers', type=str, help='dnsx - list of resolvers to use (file or comma separated)', default='')
     parser.add_argument('--wpscan-api-token', type=str, help='The WPScan API Token to display vulnerability data', default='')
+    parser.add_argument('--use-notify', action='store_true', help='Run notify on completion')
+    parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
 
     args = parser.parse_args()
     dir_path = script_init(args)
@@ -494,13 +537,13 @@ def main():
         dir_path=dir_path,
         iserver=args.iserver,
         itoken=args.itoken,
-        acu_session=args.acunetix,
+        use_acunetix=args.use_acunetix,
         yes_to_all=args.yes,
         update=args.update,
         install_all=args.install,
-        install_acunetix=args.install_acunetix,
-        resolvers_file=args.resolvers,
         wpscan_api_token=args.wpscan_api_token,
+        use_notify=args.use_notify,
+        cloud_upload=args.cloud_upload,
     )
 
     try:
@@ -513,9 +556,9 @@ def main():
         hax.naabu()
         hax.httpx()
         hax.wpscan()
-        if args.acunetix:
-            hax.acunetix()
+        hax.acunetix()
         hax.nuclei()
+        hax.notify()
 
         print(f"\ncd {dir_path}\n")
     except KeyboardInterrupt:

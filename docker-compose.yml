@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        - NUCLEI_API_KEY=${NUCLEI_API_KEY}
+    container_name: haxunit
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app-network
+      - webnet
+    depends_on:
+      - wpscan
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - WPSCAN_API_KEY=${WPSCAN_API_KEY}
+      - ACUNETIX_THRESHOLD=${ACUNETIX_THRESHOLD}
+      - ACUNETIX_API_KEY=${ACUNETIX_API_KEY}
+      - NUCLEI_API_KEY=${NUCLEI_API_KEY}
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
+
+  wpscan:
+    image: wpscanteam/wpscan
+    container_name: wpscan
+    networks:
+      - app-network
+      - webnet
+    entrypoint: ["tail", "-f", "/dev/null"]
+    environment:
+      - WPSCAN_API_KEY=${WPSCAN_API_KEY}
+
+networks:
+  app-network:
+    driver: bridge
+  webnet:
+    driver: bridge
