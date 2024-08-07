@@ -17,6 +17,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 import time
+from urllib.parse import urlparse
 
 load_dotenv()
 start_time = time.time()
@@ -528,6 +529,10 @@ def main():
     parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
 
     args = parser.parse_args()
+
+    if args.domain:
+        args.domain = urlparse(args.domain).netloc
+
     dir_path = script_init(args)
 
     hax = HaxUnit(
