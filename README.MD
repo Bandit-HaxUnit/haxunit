@@ -203,7 +203,8 @@ Clone this repository into the `dags` directory of your Apache Airflow installat
 2. **Configure Notifications**:</br>
 To receive notifications upon completion, rename `notify-config.yaml.example` to `notify-config.yaml`.</br>
 </br>
-**Example Configuration:**
+Example configuration for Slack notifications:
+
 ```bash
 slack:
   - id: "slack"
@@ -213,7 +214,7 @@ slack:
     slack_webhook_url: "https://hooks.slack.com/services/XXXXX"
 ```
 
-3.**Setup the DAG:**:</br>
+3. **Setup the DAG**:</br>
 Rename `dags.py.example` to `dags.py` and configure it according to your needs.</br>
 <br/>Don't forget to use `--use-notify` to enable notifications.
 
