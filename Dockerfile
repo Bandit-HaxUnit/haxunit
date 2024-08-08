@@ -31,8 +31,10 @@ ENV GOBIN="/root/go/bin"
 # Install Rust using rustup and set up the environment
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.65.0 -y && \
     export PATH="/root/.cargo/bin:${PATH}" && \
-    cargo install ripgen && \
-    echo "export PATH=$PATH:$HOME/.cargo/bin" >> ~/.bashrc
+    cargo install ripgen
+
+# Set up Cargo PATH
+ENV PATH="$PATH:$HOME/.cargo/bin"
 
 # Install tools
 RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
