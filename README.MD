@@ -295,31 +295,23 @@ Password: Vhae@04
 
 </details>
 
-[//]: # (<h1 align="center">)
-[//]: # (  <img src="static/acunetix_api_key.png" alt="acunetix_api_key" width="100%">)
-[//]: # (  <br>)
-[//]: # (</h1>)
-
 # 🔍 Functions
 
-| Function        | Type                            | Description                                                                                           |
-|-----------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
-| dnsx_subdomains | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
-| subfinder       | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
-| katana          | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
-| ripgen          | Subdomain discovery             | Generate and test subdomain permutations                                                              |
- | dnsx_ips        | Get IP addresses                | Use dnsx to fetch A records                                                                           |
-| naabu           | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
-| httpx           | Subdomain list validation       | Check all found subdomains if they are active                                                         |
-| wpscan          | Vulnerability discovery         | WordPress Security Scanner                                                                            |
-| acunetix        | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
-| nuclei          | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        |
+| Function        | Type                  | Description                                                                                           |
+|-----------------|-----------------------|-------------------------------------------------------------------------------------------------------|
+| dnsx_subdomains | Subdomain discovery   | Use dnsx to find subdomains and brute force subdomains                                                |
+| subfinder       | Subdomain discovery   | Use subfinder to find subdomains                                                                      |
+| katana          | Crawling              | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
+| ripgen          | Subdomain permutation | Generate and test subdomain permutations                                                              |
+| dnsx_ips        | Fetch IP addresses    | Use dnsx to fetch A records                                                                           |
+| naabu           | Port scan discovery   | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
+| httpx           | Subdomain validation  | Check all found subdomains if they are active                                                         |
+| wpscan          | Vulnerability scanner | WordPress Security Scanner                                                                            |
+| acunetix        | Vulnerability scanner | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
+| nuclei          | Vulnerability scanner | Uses all found active subdomains to search for vulnerabilities                                        |
 
 # 📂 Workflow
-<h1 align="center">
-  <img src="static/workflow.png" alt="workflow">
-  <br>
-</h1>
+<img src="static/workflow.png" alt="workflow">
 
 # 🙏 Credits
 ### Special thanks to the team at [ProjectDiscovery](https://github.com/projectdiscovery) for their incredible range of tools.
