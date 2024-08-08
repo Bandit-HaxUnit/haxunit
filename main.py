@@ -45,6 +45,7 @@ class HaxUnit:
                  use_acunetix, yes_to_all, update, install_all,
                  wpscan_api_token, use_notify, cloud_upload):
         self.site = site
+        self.all_subdomains.append(site)
         self.verbose = verbose
         self.quick = mode == "quick"
         self.python_bin = python_bin
