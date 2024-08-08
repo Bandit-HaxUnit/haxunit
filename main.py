@@ -156,15 +156,26 @@ class HaxUnit:
         if not input_file:
             self.print("Naabu", "all_subdomains.txt is empty - skipping")
         else:
-            self.cmd(f"""
-                naabu -l {self.dir_path}/all_subdomains.txt
-                 -c 100 {'' if self.verbose else '-silent'}
-                 -no-color 
-                 -exclude-cdn 
-                 -tp 1000 
-                 -ep 80,443 
-                 -o {self.dir_path}/naabu_portscan.txt
-            """)
+            if self.quick:
+                self.cmd(f"""
+                    naabu -l {self.dir_path}/all_subdomains.txt
+                     -c 100 {'' if self.verbose else '-silent'}
+                     -no-color 
+                     -exclude-cdn 
+                     -passive
+                     -ep 80,443 
+                     -o {self.dir_path}/naabu_portscan.txt
+                """)
+            else:
+                self.cmd(f"""
+                    naabu -l {self.dir_path}/all_subdomains.txt
+                     -c 100 {'' if self.verbose else '-silent'}
+                     -no-color 
+                     -top-ports 1000
+                     -exclude-cdn 
+                     -ep 80,443 
+                     -o {self.dir_path}/naabu_portscan.txt
+                """)
 
             self.ask_to_add(self.read("naabu_portscan.txt"))
             self.write_subdomains("w")
@@ -181,7 +192,7 @@ class HaxUnit:
                         -bulk-size 100
                         -c 100
                         -no-httpx
-                        -ept dns,ssl -etags detect,headers,waf
+                        -ept dns,ssl -etags detect,headers,waf,technologies,tech,wp-plugin,wordpress
                         {'-cloud-upload' if self.cloud_upload else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
@@ -367,10 +378,9 @@ class HaxUnit:
 
                 self.print("Acunetix", f"Scan(s) started!")
 
-    def gau_unfurl(self) -> None:
-        if not self.quick:
-            self.cmd(f"cat {self.dir_path}/all_subdomains.txt | gau | unfurl --unique domains > {self.dir_path}/gau_unfurl_domains.txt")
-            self.ask_to_add(self.read("gau_unfurl_domains.txt"))
+    def katana(self) -> None:
+        self.cmd(f"katana -list {self.dir_path}/all_subdomains.txt {'-d 1' if self.quick else ''} | unfurl format %s://%d:%P | sed 's/:$//g' | sort -u > {self.dir_path}/katana_domains.txt")
+        self.ask_to_add(self.read("katana_domains.txt"))
 
     def ripgen(self):
         self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > {self.dir_path}/ripgen_result.txt")
@@ -415,7 +425,7 @@ class HaxUnit:
             use_local_config = "-provider-config notify-config.yaml" if exists("notify-config.yaml") else ""
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Finished scan for these hosts:" | notify -silent {use_local_config}')
-            self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent {use_local_config}")
+            self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent -bulk {use_local_config}")
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Nuclei results:" | notify -silent {use_local_config}')
 
@@ -423,7 +433,7 @@ class HaxUnit:
                 with open(f"{self.dir_path}/nuclei_result_formatted.txt", "w", encoding='utf-8') as f:
                     f.write(add_emojis_and_format(nuclei_result))
 
-                self.cmd(f"notify -i {self.dir_path}/nuclei_result_formatted.txt -silent {use_local_config}")
+                self.cmd(f"notify -i {self.dir_path}/nuclei_result_formatted.txt -bulk -silent {use_local_config}")
 
                 if any(sev in nuclei_result for sev in ['high', 'critical']):
                     self.cmd(f'echo "⚠️ High severity issues found @channel" | notify -silent {use_local_config}')
@@ -435,13 +445,16 @@ class HaxUnit:
             if self.wp_result_filenames:
                 self.cmd(f'echo "[$(date +"%Y-%m-%d")] WPScan results:" | notify -silent {use_local_config}')
                 for wp_result_filename in self.wp_result_filenames:
-                    self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -silent {use_local_config}")
+                    self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
+
+    def droopescan(self):
+        pass
 
     def wpscan(self):
 
         def single_wpscan(wp_domain):
             filename = wp_domain.replace("https://", "").replace("http://", "").replace(".", "_").replace("/", "").replace(":", "_").strip()
-            self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect >> {self.dir_path}/wpscan_{filename}.txt")
+            self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect --disable-tls-checks >> {self.dir_path}/wpscan_{filename}.txt")
             self.wp_result_filenames.append(f"wpscan_{filename}.txt")
 
         self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $11'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
@@ -570,7 +583,7 @@ def main():
         hax.check_ip()
         hax.dnsx_subdomains()
         hax.subfinder()
-        hax.gau_unfurl()
+        hax.katana()
         hax.ripgen()
         hax.dnsx_ips()
         hax.naabu()
