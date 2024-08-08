@@ -139,11 +139,10 @@ class HaxUnit:
             f.write(all_subdomains_text)
 
     def httpx(self) -> None:
-        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
+        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt -fc 301,400,521 {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
 
         awk_cmd_2 = """awk -F "," {'print $11'}"""
-        filter_status_301_400 = "grep -v '301 Moved Permanently\|400 The plain HTTP request was sent to HTTPS port'"
-        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {filter_status_301_400 } | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
+        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
 
         awk_cmd_3 = """awk -F "," {'print $22'}"""
         self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_3} | sort -u | head -n -1 >> {self.dir_path}/httpx_ips.txt")
