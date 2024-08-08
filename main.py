@@ -193,7 +193,8 @@ class HaxUnit:
                         -bulk-size 100
                         -c 100
                         -no-httpx
-                        -ept dns,ssl -etags detect,headers,waf,technologies,tech,wp-plugin,wordpress
+                        -ept dns,ssl -etags detect,headers,waf,technologies,tech,wp-plugin,wordpress,whois
+                        -eid robots-txt,missing-sri
                         {'-cloud-upload' if self.cloud_upload else ""} 
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
@@ -427,7 +428,7 @@ class HaxUnit:
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Finished scan for these hosts:" | notify -silent {use_local_config}')
 
-            # self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent -bulk {use_local_config}")
+            self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent -bulk {use_local_config}")
             self.cmd(f"""notify -silent {use_local_config} <<< "$(echo -e '```'$(cat {self.dir_path}/all_subdomains_up.txt)'```')" """)
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Nuclei results:" | notify -silent {use_local_config}')
@@ -448,8 +449,7 @@ class HaxUnit:
             if self.wp_result_filenames:
                 self.cmd(f'echo "[$(date +"%Y-%m-%d")] WPScan results:" | notify -silent {use_local_config}')
                 for wp_result_filename in self.wp_result_filenames:
-                    # self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
-                    self.cmd(f"""notify -silent {use_local_config} <<< "$(echo -e '```'$(cat {self.dir_path}/{wp_result_filename})'```')" """)
+                    self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
 
     def droopescan(self):
         pass
