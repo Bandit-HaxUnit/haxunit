@@ -380,7 +380,7 @@ class HaxUnit:
                 self.print("Acunetix", f"Scan(s) started!")
 
     def katana(self) -> None:
-        self.cmd(f"katana -list {self.dir_path}/all_subdomains.txt {'-d 1' if self.quick else ''} | unfurl format %s://%d:%P | sed 's/:$//g' | sort -u > {self.dir_path}/katana_domains.txt")
+        self.cmd(f"katana -list {self.dir_path}/all_subdomains.txt {'-d 1' if self.quick else ''} | unfurl format %d:%P | sed 's/:$//g' | sort -u > {self.dir_path}/katana_domains.txt")
         self.ask_to_add(self.read("katana_domains.txt"))
 
     def ripgen(self):
