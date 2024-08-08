@@ -141,7 +141,7 @@ class HaxUnit:
     def httpx(self) -> None:
         self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
 
-        awk_cmd_2 = """awk -F "," {'print $11'} | awk -F ":" {'print $1 ":" $2'} """
+        awk_cmd_2 = """awk -F "," {'print $11'}"""
         self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
 
         awk_cmd_3 = """awk -F "," {'print $22'}"""
@@ -458,7 +458,7 @@ class HaxUnit:
             self.cmd(f"docker run -it --rm wpscanteam/wpscan --update --url {wp_domain} {f'--api-token {self.wpscan_api_token}' if self.wpscan_api_token else ''} --ignore-main-redirect --disable-tls-checks >> {self.dir_path}/wpscan_{filename}.txt")
             self.wp_result_filenames.append(f"wpscan_{filename}.txt")
 
-        self.cmd(f"grep -i wordpress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $11'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
+        self.cmd(f"grep WordPress {self.dir_path}/httpx_result.csv | awk -F ',' {{'print $11'}} | sort -u > {self.dir_path}/wordpress_domains.txt")
         wordpress_domains = self.read("wordpress_domains.txt")
 
         if wordpress_domains:
