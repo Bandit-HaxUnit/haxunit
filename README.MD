@@ -205,7 +205,17 @@ Clone this repository into the `dags` directory of your Apache Airflow installat
 ```commandline
  git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit
 ```
-2. **Configure Notifications**:</br>
+
+2. **Rename `.env.example` to `.env` and fill in the API keys.**
+
+```commandline
+ACUNETIX_THRESHOLD=30
+ACUNETIX_API_KEY=
+NUCLEI_API_KEY=
+WPSCAN_API_KEY=
+```
+
+3. **Configure Notifications**:</br>
 To receive notifications upon completion, rename `notify-config.yaml.example` to `notify-config.yaml`.</br>
 
 Example configuration for Slack notifications:
@@ -219,11 +229,11 @@ slack:
     slack_webhook_url: "https://hooks.slack.com/services/XXXXX"
 ```
 
-3. **Setup the DAG**:</br>
+4. **Setup the DAG**:</br>
 Rename `dags.py.example` to `dags.py` and configure it according to your needs.</br>
 <br/>Don't forget to use `--use-notify` to enable notifications.
 
-4. **Build and Run HaxUnit**:</br>
+5. **Build and Run HaxUnit**:</br>
 After configuring the notification settings, build and run HaxUnit with the following command:
 
 ```bash

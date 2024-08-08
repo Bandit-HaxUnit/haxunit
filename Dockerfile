@@ -40,7 +40,7 @@ RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 RUN go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-RUN go install github.com/lc/gau/v2/cmd/gau@latest
+RUN go install github.com/projectdiscovery/katana/cmd/katana@latest
 RUN go install github.com/tomnomnom/unfurl@latest
 RUN go install -v github.com/projectdiscovery/notify/cmd/notify@latest
 
