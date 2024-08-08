@@ -426,7 +426,9 @@ class HaxUnit:
             use_local_config = "-provider-config notify-config.yaml" if exists("notify-config.yaml") else ""
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Finished scan for these hosts:" | notify -silent {use_local_config}')
-            self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent -bulk {use_local_config}")
+
+            # self.cmd(f"notify -i {self.dir_path}/all_subdomains_up.txt -silent -bulk {use_local_config}")
+            self.cmd(f"""notify -silent {use_local_config} <<< "$(echo -e '```'$(cat {self.dir_path}/all_subdomains_up.txt)'```')" """)
 
             self.cmd(f'echo "[$(date +"%Y-%m-%d")] Nuclei results:" | notify -silent {use_local_config}')
 
@@ -437,16 +439,17 @@ class HaxUnit:
                 self.cmd(f"notify -i {self.dir_path}/nuclei_result_formatted.txt -bulk -silent {use_local_config}")
 
                 if any(sev in nuclei_result for sev in ['high', 'critical']):
-                    self.cmd(f'echo "⚠️ High severity issues found @channel" | notify -silent {use_local_config}')
+                    self.cmd(f'echo "⚠️ ️High severity issues found <!channel>" | notify -silent {use_local_config}')
                 elif any(sev in nuclei_result for sev in ['low', 'medium']):
-                    self.cmd(f'echo "⚠️ Medium/Low severity issues found" | notify -silent {use_local_config}')
+                    self.cmd(f'echo "⚠️ Medium/Low severity issues found <!channel>" | notify -silent {use_local_config}')
             else:
                 self.cmd(f'echo "✅ No results" | notify -silent {use_local_config}')
 
             if self.wp_result_filenames:
                 self.cmd(f'echo "[$(date +"%Y-%m-%d")] WPScan results:" | notify -silent {use_local_config}')
                 for wp_result_filename in self.wp_result_filenames:
-                    self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
+                    # self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
+                    self.cmd(f"""notify -silent {use_local_config} <<< "$(echo -e '```'$(cat {self.dir_path}/{wp_result_filename})'```')" """)
 
     def droopescan(self):
         pass

@@ -36,7 +36,7 @@ HaxUnit is focused on simplicity and aims to be the best and most complete solut
 git clone https://github.com/Bandit-HaxUnit/haxunit && cd haxunit 
 ```
 
-2. **Rename `.env.example` to `.env` and fill in the API keys.**
+2. (optional) **Rename `.env.example` to `.env` and fill in the API keys.**
 
 ```commandline
 ACUNETIX_THRESHOLD=30
@@ -295,31 +295,31 @@ Password: Vhae@04
 
 </details>
 
-<h1 align="center">
-  <img src="static/acunetix_api_key.png" alt="acunetix_api_key" width="100%">
-  <br>
-</h1>
+[//]: # (<h1 align="center">)
+[//]: # (  <img src="static/acunetix_api_key.png" alt="acunetix_api_key" width="100%">)
+[//]: # (  <br>)
+[//]: # (</h1>)
 
 # 🔍 Functions
 
-| Function          | Type                            | Description                                                                                           |
-|-------------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
-| dnsx_subdomains   | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
-| subfinder         | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
-| gau_unfurl        | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
-| ripgen            | Subdomain discovery             | Generate and test subdomain permutations                                                              |
- | dnsx_ips          | Get IP addresses                | Use dnsx to fetch A records                                                                           |
-| naabu             | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
-| httpx             | Subdomain list validation       | Check all found subdomains if they are active                                                         |
-| wpscan            | Vulnerability discovery         | WordPress Security Scanner                                                                            |
-| acunetix          | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
-| nuclei            | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        |
+| Function        | Type                            | Description                                                                                           |
+|-----------------|---------------------------------|-------------------------------------------------------------------------------------------------------|
+| dnsx_subdomains | Subdomain discovery             | Use dnsx to find subdomains and brute force subdomains                                                |
+| subfinder       | Subdomain discovery             | Use subfinder to find subdomains                                                                      |
+| katana          | Subdomain discovery             | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
+| ripgen          | Subdomain discovery             | Generate and test subdomain permutations                                                              |
+ | dnsx_ips        | Get IP addresses                | Use dnsx to fetch A records                                                                           |
+| naabu           | Port scan + Subdomain discovery | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
+| httpx           | Subdomain list validation       | Check all found subdomains if they are active                                                         |
+| wpscan          | Vulnerability discovery         | WordPress Security Scanner                                                                            |
+| acunetix        | Vulnerability discovery         | Automatically creates a group for the site and starts scans of the subdomains to find vulnerabilities |
+| nuclei          | Vulnerability discovery         | Uses all found active subdomains to search for vulnerabilities                                        |
 
 # 📂 Workflow
 <h1 align="center">
-  <img src="static/workflow.png" alt="workflow"></a>
+  <img src="static/workflow.png" alt="workflow">
   <br>
 </h1>
 
 # 🙏 Credits
-Special thanks to the team at https://github.com/projectdiscovery for their incredible range of tools.
+### Special thanks to the team at [ProjectDiscovery](https://github.com/projectdiscovery) for their incredible range of tools.
