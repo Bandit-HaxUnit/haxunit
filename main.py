@@ -19,6 +19,10 @@ from dotenv import load_dotenv
 import time
 from urllib.parse import urlparse
 
+import hashlib
+import platform
+import uuid
+
 load_dotenv()
 start_time = time.time()
 
@@ -40,6 +44,8 @@ class HaxUnit:
     all_subdomains = []
     all_subdomains_up = []
     timestamp = datetime.now()
+
+    anonymous_hwid = hashlib.sha256(f"{platform.system()}-{platform.node()}-{uuid.uuid4().hex}".encode()).hexdigest()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
                  use_acunetix, yes_to_all, update, install_all,
@@ -63,6 +69,7 @@ class HaxUnit:
         self.iserver = iserver
         self.itoken = itoken
 
+        self.haxunit_api_key = getenv("HAXUNIT_API_KEY", "")
         self.use_notify = use_notify
         self.cloud_upload = cloud_upload
 
@@ -147,9 +154,11 @@ class HaxUnit:
         awk_cmd_3 = """awk -F "," {'print $22'}"""
         self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_3} | sort -u | head -n -1 >> {self.dir_path}/httpx_ips.txt")
 
-        self.cmd(f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnscan_ips.txt | sort -u > {self.dir_path}/all_ips.txt")
+        self.cmd(f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnsx_ips.txt | sort -u > {self.dir_path}/all_ips.txt")
 
         self.all_subdomains_up = self.remove_unwanted_domains(self.read("all_subdomains_up.txt"))
+
+        self.event("httpx_result", "all_subdomains_up.txt")
 
     def naabu(self) -> None:
         input_file = self.read("all_subdomains.txt")
@@ -199,6 +208,7 @@ class HaxUnit:
                         {f"-interactsh-url {self.iserver}" if self.iserver else ""}
                         {f"-itoken {self.itoken}" if self.itoken else ""}
                     """)
+        self.event("nuclei_result", "nuclei_result.txt")
 
     def check_ip(self) -> None:
         ipaddress = get("http://ifconfig.me/ip").text
@@ -206,6 +216,7 @@ class HaxUnit:
 
         ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
         self.print("IP Address", ipaddress)
+        self.event("scan_started")
 
         if ip_check != "Y":
             if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
@@ -305,6 +316,7 @@ class HaxUnit:
 
         if self.use_acunetix and self.acunetix_api_key and acunetix_up():
             self.print("Acunetix", "Starting acunetix")
+            self.event("using_acunetix")
 
             data = {}
             cookies = {'ui_session': self.acunetix_api_key}
@@ -390,6 +402,7 @@ class HaxUnit:
 
     def notify(self):
         if self.use_notify:
+            self.event("using_notify")
 
             def get_severity_emoji(severity):
                 severity_mapping = {
@@ -405,9 +418,9 @@ class HaxUnit:
             def transform_label(label):
                 return ' '.join(word.capitalize() for word in label.replace('-', ' ').split())
 
-            def add_emojis_and_format(nuclei_result):
+            def add_emojis_and_format(result):
                 formatted_lines = []
-                for line in nuclei_result.strip().split('\n'):
+                for line in result.strip().split('\n'):
                     parts = line.split()
                     if len(parts) < 4:
                         formatted_lines.append(f"❓ {line}")
@@ -451,6 +464,25 @@ class HaxUnit:
                 for wp_result_filename in self.wp_result_filenames:
                     self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
 
+    def event(self, message=None, filename=None):
+        try:
+            url = "https://app.haxunit.com/handle_event"
+            headers = {"Content-Type": "application/json"}
+            json_data = {
+                "domain": self.site,
+                "message": message,
+                "hwid": self.anonymous_hwid,
+                "api_key": self.haxunit_api_key
+            }
+
+            if filename:
+                json_data["filename"] = filename
+                with open(f'{self.dir_path}/{filename}', 'rb', encoding="utf-8") as file:
+                    post(url, headers=headers, json=json_data, files={'file': file})
+            else:
+                post(url, headers=headers, json=json_data)
+        except: pass
+
     def droopescan(self):
         pass
 
@@ -470,6 +502,7 @@ class HaxUnit:
             print()
 
             if self.ask(f"Would you like to run wpscan on all ({len(wordpress_domains)}) domains? "):
+                self.event("using_wpscan")
 
                 with ThreadPoolExecutor(max_workers=5) as pool:
                     pool.map(single_wpscan, wordpress_domains)
