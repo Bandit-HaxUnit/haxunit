@@ -209,6 +209,7 @@ class HaxUnit:
                         {f"-itoken {self.itoken}" if self.itoken else ""}
                     """)
         self.event("nuclei_result", "nuclei_result.txt")
+        self.event("scan_finished")
 
     def check_ip(self) -> None:
         ipaddress = get("http://ifconfig.me/ip").text
@@ -396,9 +397,9 @@ class HaxUnit:
         self.cmd(f"katana -list {self.dir_path}/all_subdomains.txt {'-d 1' if self.quick else ''} | unfurl format %d:%P | sed 's/:$//g' | sort -u > {self.dir_path}/katana_domains.txt")
         self.ask_to_add(self.read("katana_domains.txt"))
 
-    def ripgen(self):
-        self.cmd(f"ripgen -d {self.dir_path}/all_subdomains.txt | sort -u | dnsx -silent > {self.dir_path}/ripgen_result.txt")
-        self.ask_to_add(self.read("ripgen_result.txt"))
+    def alterx(self):
+        self.cmd(f"alterx -l {self.dir_path}/all_subdomains.txt {'' if self.quick else '-enrich'} | sort -u | dnsx -silent > {self.dir_path}/alterx_result.txt")
+        self.ask_to_add(self.read("alterx_result.txt"))
 
     def notify(self):
         if self.use_notify:
@@ -477,7 +478,7 @@ class HaxUnit:
 
             if filename:
                 json_data["filename"] = filename
-                with open(f'{self.dir_path}/{filename}', 'rb', encoding="utf-8") as file:
+                with open(f'{self.dir_path}/{filename}', 'rb') as file:
                     post(url, data=json_data, files={'file': file})
             else:
                 post(url, data=json_data)
@@ -621,7 +622,7 @@ def main():
         hax.dnsx_subdomains()
         hax.subfinder()
         hax.katana()
-        hax.ripgen()
+        hax.alterx()
         hax.dnsx_ips()
         hax.naabu()
         hax.httpx()
