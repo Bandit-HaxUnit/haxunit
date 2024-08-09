@@ -158,7 +158,7 @@ class HaxUnit:
 
         self.all_subdomains_up = self.remove_unwanted_domains(self.read("all_subdomains_up.txt"))
 
-        self.event("httpx_result", "all_subdomains_up.txt")
+        self.event("httpx_result", "httpx_result.csv")
 
     def naabu(self) -> None:
         input_file = self.read("all_subdomains.txt")
