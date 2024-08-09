@@ -478,9 +478,9 @@ class HaxUnit:
             if filename:
                 json_data["filename"] = filename
                 with open(f'{self.dir_path}/{filename}', 'rb', encoding="utf-8") as file:
-                    post(url, json=json_data, files={'file': file})
+                    post(url, data=json_data, files={'file': file})
             else:
-                post(url, json=json_data)
+                post(url, data=json_data)
         except: pass
 
     def droopescan(self):
