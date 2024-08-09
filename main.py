@@ -467,7 +467,7 @@ class HaxUnit:
     def event(self, message=None, filename=None):
         try:
             url = "https://app.haxunit.com/handle_event"
-            headers = {"Content-Type": "application/json"}
+
             json_data = {
                 "domain": self.site,
                 "message": message,
@@ -478,9 +478,9 @@ class HaxUnit:
             if filename:
                 json_data["filename"] = filename
                 with open(f'{self.dir_path}/{filename}', 'rb', encoding="utf-8") as file:
-                    post(url, headers=headers, json=json_data, files={'file': file})
+                    post(url, json=json_data, files={'file': file})
             else:
-                post(url, headers=headers, json=json_data)
+                post(url, json=json_data)
         except: pass
 
     def droopescan(self):
