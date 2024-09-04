@@ -11,6 +11,11 @@
   <a href="#functions">Functions</a>
 </p>
 
+<p align="center">
+   <a href="https://haxunit.com" style="font-size:50px">HaxUnit.com</a></br>
+   <a href="https://discord.gg/83xfCdRP7Y" style="font-size:50px">Join the Discord!</a></br>
+</p>
+
 # 📘Intro
 
 HaxUnit is a Python script designed for comprehensive reconnaissance and security assessment of web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.</br>
@@ -59,7 +64,7 @@ HaxUnit is now ready to rock!
 Time to find those vulnerabilities and patch them like a pro! 🕵️‍♂️🔍
 
 🚀 To start scanning, run the following command:
-python3 main.py -d <domain>
+haxunit -d <domain>
  ```
 
 # 🛠️ Install HaxUnit Manually
@@ -117,7 +122,7 @@ Make sure you have the following software installed on your system:
 
     Finally, run the main script with the `--install` flag:
     ```sh
-    python3 main.py --install
+    haxunit --install
     ```
    
 If everything is installed correctly you should see the following output:
@@ -128,7 +133,7 @@ If everything is installed correctly you should see the following output:
 
 # 📖 Usage
 ```commandline
-python3 main.py -h
+haxunit -h
 ```
 
 This will display help for the tool. Here are all the switches it supports.
@@ -165,17 +170,17 @@ optional arguments:
 
 Run a quick scan on `example.com`:
 ```commandline
-python3 main.py -d example.com
+haxunit -d example.com
 ```
 
 Run a quick scan on `example.com` saying yes to adding domains by default:
 ```commandline
-python3 main.py -d example.com -y
+haxunit -d example.com -y
 ```
 
 Run an extensive scan on `example.com` using Acunetix and uploading results to ProjectDiscovery cloud:
 ```commandline
-python3 main.py -d example.com -m extensive --use-acunetix --cloud-upload 
+haxunit -d example.com -m extensive --use-acunetix --cloud-upload 
 ```
 
 ### Viewing Results
@@ -264,7 +269,7 @@ Rebuild docker compose to apply the changes:
 
 To run HaxUnit with Acunetix, use the following command:
 ```commandline
-python3 main.py -d example.com --use-acunetix
+haxunit -d example.com --use-acunetix
 ```
 
 
@@ -276,7 +281,7 @@ python3 main.py -d example.com --use-acunetix
  To install Acunetix, execute the following command:
 
 ```commandline
-bash <(curl -sLk https://raw.githubusercontent.com/Bandit-HaxUnit/acunetix23/main/check.sh) vhae044/acun24.4
+bash <(wget -qO- https://raw.githubusercontent.com/Bandit-HaxUnit/acu/main/install.sh) vouu/acuss:14.7.220228146
 ```
 
 This will download and install the Acunetix container. </br>
@@ -288,8 +293,8 @@ Acunetix can be accessed at https://localhost:3443. <br>
    <summary>Use the following default credentials to log in:</summary>
 
 ```commandline
-Username: vhae04@gmail.com
-Password: Vhae@04
+Username: awvs@awvs.com
+Password: Awvs@awvs.com
 ```
 </details>
 
@@ -315,3 +320,9 @@ Password: Vhae@04
 
 # 🙏 Credits
 ### Special thanks to the team at [ProjectDiscovery](https://github.com/projectdiscovery) for their incredible range of tools.
+
+</br></br>
+<p align="center">
+   <a href="https://haxunit.com" style="font-size:50px">HaxUnit.com</a></br>
+   <a href="https://discord.gg/83xfCdRP7Y" style="font-size:50px">Join the Discord!</a></br>
+</p>

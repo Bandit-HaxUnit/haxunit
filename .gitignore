@@ -5,3 +5,7 @@ resume.cfg
 dags.py
 .env
 .idea
+
+test.py
+notes
+*.ovpn

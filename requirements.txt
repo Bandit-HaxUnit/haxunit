@@ -3,3 +3,4 @@ requests~=2.32.3
 python-dotenv~=1.0.1
 rich~=13.7.1
 apache-airflow~=2.9.3
+reportlab~=4.2.2

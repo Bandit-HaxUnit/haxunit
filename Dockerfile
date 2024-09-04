@@ -1,5 +1,5 @@
 # Use an official Python base image
-FROM python:3.8
+FROM python:3.12
 
 # Switch default shell to bash
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
@@ -9,10 +9,14 @@ RUN apt-get update && \
     apt-get install -y \
         expect \
         sudo \
-        cargo \
         docker.io \
         wget \
         tar \
+        cewl \
+        vim \
+        dos2unix \
+        tmux \
+        openvpn \
         libpcap-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -28,14 +32,6 @@ ENV PATH="/usr/local/go/bin:/root/go/bin:$PATH"
 ENV GOPATH="/root/go"
 ENV GOBIN="/root/go/bin"
 
-# Install Rust using rustup and set up the environment
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.65.0 -y && \
-    export PATH="/root/.cargo/bin:${PATH}" && \
-    cargo install ripgen
-
-# Set up Cargo PATH
-ENV PATH="$PATH:$HOME/.cargo/bin"
-
 # Install tools
 RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
@@ -45,6 +41,8 @@ RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 RUN go install github.com/projectdiscovery/katana/cmd/katana@latest
 RUN go install github.com/tomnomnom/unfurl@latest
 RUN go install -v github.com/projectdiscovery/notify/cmd/notify@latest
+RUN go install -v github.com/projectdiscovery/alterx/cmd/alterx@latest
+RUN go install -v github.com/ffuf/ffuf/v2@latest
 
 # TO-DO: Implement pdtm to install tools
 # go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
@@ -79,3 +77,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Install pwncat-cs
+#RUN pip install pwncat-cs
+
+# Convert main.py to Unix format
+RUN dos2unix /app/main.py
+
+# Make main.py script executable
+RUN chmod +x /app/main.py
+
+# Create a symlink
+RUN ln -s /app/main.py /usr/local/bin/haxunit
+
+# Create a directory for OpenVPN configuration
+RUN mkdir -p /etc/openvpn/
+
+# Copy OpenVPN configuration file
+ARG HTB_OPENVPN_FILE
+
+# Need to fix auto connect to HTB VPN
+CMD if [ -n "$HTB_OPENVPN_FILE" ]; then \
+      tmux new-session -d "openvpn --config ${HTB_OPENVPN_FILE}"; \
+    else \
+      echo "HTB_OPENVPN_FILE is empty. Skipping VPN connection."; \
+    fi && \
+    tail -f /dev/null
