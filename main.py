@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
 import subprocess
 
-subprocess.call(["clear"])
+# subprocess.call(["clear"])
 
 from requests import get, post
 
-from json import dumps, loads
+import json
+from json import dumps, loads, load
 import urllib3
 
 urllib3.disable_warnings()
@@ -18,6 +20,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 import time
 from urllib.parse import urlparse
+import csv
+from copy import deepcopy
+import ipaddress
 
 import hashlib
 import platform
@@ -44,14 +49,16 @@ class HaxUnit:
     all_subdomains = []
     all_subdomains_up = []
     timestamp = datetime.now()
+    hostname = ""
 
     anonymous_hwid = hashlib.sha256(f"{platform.system()}-{platform.node()}-{uuid.uuid4().hex}".encode()).hexdigest()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
                  use_acunetix, yes_to_all, update, install_all,
-                 wpscan_api_token, use_notify, cloud_upload):
+                 wpscan_api_token, use_notify, cloud_upload, htb, fuzz):
         self.site = site
         self.all_subdomains.append(site)
+
         self.verbose = verbose
         self.quick = mode == "quick"
         self.python_bin = python_bin
@@ -68,6 +75,11 @@ class HaxUnit:
 
         self.iserver = iserver
         self.itoken = itoken
+        self.fuzz = fuzz
+
+        self.htb = htb
+        if self.htb:
+            self.ip = deepcopy(self.site)
 
         self.haxunit_api_key = getenv("HAXUNIT_API_KEY", "")
         self.use_notify = use_notify
@@ -75,19 +87,21 @@ class HaxUnit:
 
         self.wp_result_filenames = []
 
-        self.cmd("clear")
+        self.write_subdomains()
+        # input("wait")
+        # self.cmd("clear")
 
         print(Colors.BOLD)
         print("""                                                                         
-  _    _            _    _       _ _   
- | |  | |          | |  | |     (_) |  
- | |__| | __ ___  _| |  | |_ __  _| |_ 
- |  __  |/ _` \ \/ / |  | | '_ \| | __|
- | |  | | (_| |>  <| |__| | | | | | |_ 
- |_|  |_|\__,_/_/\_\\____/|_| |_|_|\__|
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+░  ░░░░  ░░░      ░░░  ░░░░  ░░  ░░░░  ░░   ░░░  ░░        ░░        ░
+▒  ▒▒▒▒  ▒▒  ▒▒▒▒  ▒▒▒  ▒▒  ▒▒▒  ▒▒▒▒  ▒▒    ▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒
+▓        ▓▓  ▓▓▓▓  ▓▓▓▓    ▓▓▓▓  ▓▓▓▓  ▓▓  ▓  ▓  ▓▓▓▓▓  ▓▓▓▓▓▓▓▓  ▓▓▓▓
+█  ████  ██        ███  ██  ███  ████  ██  ██    █████  ████████  ████
+█  ████  ██  ████  ██  ████  ███      ███  ███   ██        █████  ████
+██████████████████████████████████████████████████████████████████████
 
-                                       v3.5 by the butcher""")
-
+                                       v4.0 - haxunit.com""")
         print()
 
         if self.install_all:
@@ -107,6 +121,14 @@ class HaxUnit:
         time_running = time.strftime("%M:%S", time.gmtime(elapsed_time))
 
         print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{time_running}] [{Colors.OK}{title}{Colors.RESET}] {color_type}{text}{Colors.RESET}")
+
+    @staticmethod
+    def is_ip_address(string):
+        try:
+            ipaddress.ip_address(string)
+            return True
+        except ValueError:
+            return False
 
     def cmd(self, cmd: str) -> str:
         cmd = " ".join(cmd.split())
@@ -142,7 +164,8 @@ class HaxUnit:
 
     def write_subdomains(self, mode="a") -> None:
         with open(f"{self.dir_path}/all_subdomains.txt", mode) as f:
-            all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _])
+            all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _]) + "\n"
+            # print(all_subdomains_text)
             f.write(all_subdomains_text)
 
     def httpx(self) -> None:
@@ -166,31 +189,23 @@ class HaxUnit:
         if not input_file:
             self.print("Naabu", "all_subdomains.txt is empty - skipping")
         else:
-            if self.quick:
-                self.cmd(f"""
-                    naabu -l {self.dir_path}/all_subdomains.txt
-                     -c 100 {'' if self.verbose else '-silent'}
-                     -no-color 
-                     -exclude-cdn 
-                     -passive
-                     -ep 80,443 
-                     -o {self.dir_path}/naabu_portscan.txt
-                """)
-            else:
-                self.cmd(f"""
-                    naabu -l {self.dir_path}/all_subdomains.txt
-                     -c 100 {'' if self.verbose else '-silent'}
-                     -no-color 
-                     -top-ports 1000
-                     -exclude-cdn 
-                     -ep 80,443 
-                     -o {self.dir_path}/naabu_portscan.txt
-                """)
+            self.cmd(f"""
+                naabu -l {self.dir_path}/all_subdomains.txt
+                 -c 100 {'' if self.verbose else '-silent'}
+                 -no-color 
+                 -top-ports 1000
+                 -exclude-cdn 
+                 -ep 80,443 
+                 -o {self.dir_path}/naabu_portscan.txt
+            """)
 
             self.ask_to_add(self.read("naabu_portscan.txt"))
-            self.write_subdomains("w")
+            self.write_subdomains()
 
     def subfinder(self) -> None:
+        if self.htb or self.is_ip_address(self.site):
+            return
+
         self.print("Subfinder", "Process started")
         self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -all -o {self.dir_path}/subfinder_subdomains.txt")
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
@@ -212,16 +227,17 @@ class HaxUnit:
         self.event("scan_finished")
 
     def check_ip(self) -> None:
-        ipaddress = get("http://ifconfig.me/ip").text
-        ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
+        if not self.htb:
+            ipaddress = get("http://ifconfig.me/ip").text
+            ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
 
-        ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
-        self.print("IP Address", ipaddress)
-        self.event("scan_started")
+            ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
+            self.print("IP Address", ipaddress)
+            self.event("scan_started")
 
-        if ip_check != "Y":
-            if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
-                exit()
+            if ip_check != "Y":
+                if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
+                    exit()
 
     @staticmethod
     def remove_unwanted_domains(domain_list) -> list:
@@ -243,7 +259,7 @@ class HaxUnit:
             "error"
         )
 
-        return [_ for _ in domain_list if (not _.endswith(unwanted_domains) and not _.startswith("*"))]
+        return [_ for _ in domain_list if (not _.endswith(unwanted_domains) and not _.startswith("*") and _)]
 
     def ask_to_add(self, ask_domains: list, reask_same_tld=False) -> bool:
         ask_domains = [domain for domain in list(set(ask_domains)) if domain not in self.all_subdomains]
@@ -257,7 +273,7 @@ class HaxUnit:
 
             if self.ask(f"\nWould you like to add {len(ask_domains)} domains to the list? "):
                 self.all_subdomains.extend(ask_domains)
-                self.write_subdomains()
+                self.write_subdomains("w")
                 return True
             elif reask_same_tld:
                 self.ask_to_add(list(set([_ for _ in ask_domains if _.endswith(self.site)])))
@@ -265,11 +281,14 @@ class HaxUnit:
         return False
 
     def dnsx_subdomains(self) -> None:
+        if self.is_ip_address(self.site):
+            return
+
         self.print("DNSx", "Started subdomain bruteforce")
         self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt {'--stats' if not self.quick else ''} -wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8 -stats")
         self.ask_to_add(self.read("dnsx_result.txt"))
 
-        if self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
+        if self.read("dnsx_result.txt") and self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
             self.print("DNSx", "Started multi-threaded recursive bruteforce")
 
             all_found_subdomains = []
@@ -280,7 +299,7 @@ class HaxUnit:
                     self.print("DNSx", f"Iteration: {iteration}")
 
                     def dnsx_brute(subdomain):
-                        self.cmd(f"dnsx -silent -d {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt -r 8.8.8.8")
+                        self.cmd(f"dnsx -silent -d {subdomain} -wd {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt -r 8.8.8.8")
 
                     file_to_read = "dnsx_result.txt" if not iteration else f"dnsx_recursive_iter_{iteration - 1}_result.txt"
                     self.print("DNSx", f"Reading file: {file_to_read}")
@@ -300,8 +319,11 @@ class HaxUnit:
             self.ask_to_add(all_found_subdomains)
 
     def dnsx_ips(self) -> None:
+        if self.is_ip_address(self.site):
+            return
+
         self.print("DNSx", "Get A records")
-        self.cmd(f"dnsx -l {self.dir_path}/all_subdomains.txt"
+        self.cmd(f"dnsx -l {self.dir_path}/all_subdomains.txt" 
                  f" -a -resp-only -silent | sort -u > {self.dir_path}/dnsx_ips.txt")
 
         # self.ask_to_add(self.read("dnsx_ips.txt"))
@@ -310,7 +332,7 @@ class HaxUnit:
 
         def acunetix_up():
             try:
-                get("https://localhost:3443/api/v1/target_groups")
+                get("https://host.docker.internal:3443/api/v1/target_groups", verify=False)
                 return True
             except ConnectionError:
                 return False
@@ -330,7 +352,7 @@ class HaxUnit:
 
             self.print("Acunetix", f"Active subdomain count: {len(self.all_subdomains_up)}")
 
-            all_groups = get("https://localhost:3443/api/v1/target_groups", headers=headers, verify=False).json()["groups"]
+            all_groups = get("https://host.docker.internal:3443/api/v1/target_groups", headers=headers, verify=False).json()["groups"]
 
             try:
                 group_id = next(row["group_id"] for row in all_groups if row["name"] == self.site)
@@ -343,7 +365,7 @@ class HaxUnit:
                 self.print("Acunetix", "Creating new group")
 
                 group_id = post(
-                    'https://localhost:3443/api/v1/target_groups',
+                    'https://host.docker.internal:3443/api/v1/target_groups',
                     headers=headers,
                     cookies=cookies,
                     data=dumps({"name": self.site, "description": ""}),
@@ -372,7 +394,7 @@ class HaxUnit:
 
             if data:
 
-                response = post('https://localhost:3443/api/v1/targets/add', headers=headers, cookies=cookies,
+                response = post('https://host.docker.internal:3443/api/v1/targets/add', headers=headers, cookies=cookies,
                                 data=dumps(data), verify=False).json()
 
                 for target in response["targets"]:
@@ -388,7 +410,7 @@ class HaxUnit:
                         "target_id": target["target_id"]
                     }
 
-                    post('https://localhost:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data),
+                    post('https://host.docker.internal:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data),
                          verify=False)
 
                 self.print("Acunetix", f"Scan(s) started!")
@@ -398,6 +420,9 @@ class HaxUnit:
         self.ask_to_add(self.read("katana_domains.txt"))
 
     def alterx(self):
+        if self.is_ip_address(self.site):
+            return
+
         self.cmd(f"alterx -l {self.dir_path}/all_subdomains.txt {'' if self.quick else '-enrich'} | sort -u | dnsx -silent > {self.dir_path}/alterx_result.txt")
         self.ask_to_add(self.read("alterx_result.txt"))
 
@@ -487,6 +512,146 @@ class HaxUnit:
     def droopescan(self):
         pass
 
+    def add_hosts(self, hosts: list) -> None:
+        for host in hosts:
+            command = f"echo '{self.ip} {host}' >> /etc/hosts"
+            self.cmd(command)
+            docker_command = f"""docker exec -u root awvs sh -c "{command}" """
+            self.cmd(docker_command)
+            self.print("HTB", f"Added '{host}' to /etc/hosts")
+
+    def htb_add_hosts(self):
+        if self.htb:
+            response = get(f'http://{self.site}', allow_redirects=False)
+
+            if response.status_code in (301, 302):
+                redirected_url = response.headers.get('Location')
+
+                if redirected_url:
+                    self.hostname = redirected_url.split('//')[-1].rstrip("/")
+                    self.site = self.hostname
+                    self.all_subdomains.extend([self.site, f'http://{self.site}', f'https://{self.site}'])
+                    self.add_hosts([self.site])
+                    self.write_subdomains()
+            else:
+                self.print("HTB", "No redirection found")
+
+    def ffuf_vhosts_check(self, file):
+        with open(f'{self.dir_path}/{file}', mode='r') as file:
+            vhosts = [row[0] for row in csv.reader(file)][1:]
+            if vhosts:
+                self.ask_to_add([f'http://{vhost}.{self.site}' for vhost in vhosts])
+                self.add_hosts([f"{vhost}.{self.hostname}" for vhost in vhosts])
+
+    def ffuf_vhosts(self):
+        if (self.htb and self.hostname) or (self.fuzz and self.hostname):
+            self.cmd(f'cewl {self.hostname} | grep -v CeWL | sort -u > {self.dir_path}/cewl_wordlist.txt')
+
+            if self.read("cewl_wordlist.txt"):
+                self.cmd(f"ffuf -w {self.dir_path}/cewl_wordlist.txt -u http://{self.hostname}  -H 'Host: FUZZ.{self.site}' -mc 200,401 -of csv -o {self.dir_path}/ffuf_vhosts_cewl.csv")
+
+            if self.read("ffuf_vhosts_cewl.csv"):
+                self.ffuf_vhosts_check("ffuf_vhosts_cewl.csv")
+
+            self.cmd(f"ffuf -w data/subdomains-1000.txt -u http://{self.hostname}  -H 'Host: FUZZ.{self.site}' -mc 200,401 -of csv -o {self.dir_path}/ffuf_vhosts.csv")
+            if self.read("ffuf_vhosts.csv"):
+                self.ffuf_vhosts_check("ffuf_vhosts.csv")
+
+
+    def run_ffuf(self, url, output_file, wordlist, output_format="json"):
+        cmd = f"ffuf -u {url.rstrip('/')}/FUZZ -w {wordlist} -o {output_file} -of {output_format} -fc 403"
+        self.cmd(cmd)
+
+    def ffuf_scan(self, url, directory=""):
+        # Generate the output file name and path for directories
+        dir_output_file = os.path.join(self.dir_path, "ffuf",
+                                       f"{url.replace('://', '_').replace('/', '_')}_{directory.replace('/', '_')}_dirs.json")
+
+        # Run the ffuf scan for directories
+        self.run_ffuf(f"{url}/{directory}", dir_output_file, f"data/raft-{'small' if self.quick else 'large'}-directories-lowercase.txt")
+
+        found_directories = self.parse_ffuf_results(dir_output_file)
+
+        if len(found_directories) > 10:
+            if self.ask(f"More than 10 directories found. Would you like to continue scanning all of these? "):
+                self.print("FFUF", "Continuing scanning directories")
+                for sub_dir in found_directories:
+                    self.ffuf_scan(url, f"{directory}/{sub_dir}")
+
+        # After scanning directories, fuzz for files in the current directory
+        self.scan_files_in_directory(url, directory)
+
+    def scan_files_in_directory(self, url, directory=""):
+        # Generate the output file name and path for files
+        file_output_file = os.path.join(self.dir_path, "ffuf",
+                                        f"{url.replace('://', '_').replace('/', '_')}_{directory.replace('/', '_')}_files.json")
+
+        # Run the ffuf scan for files in the current directory
+        self.run_ffuf(f"{url}/{directory}", file_output_file, f"data/raft-{'small' if self.quick else 'large'}-files-lowercase.txt")
+
+    def parse_ffuf_results(self, file_path):
+        directories = []
+        try:
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                status_count = sum(1 for result in data.get("results", []) if result.get("status") in (200, 301, 302))
+
+                if status_count > 50:
+                    self.print("FFUF", "More than 50 results with status 200, 301, or 302. Skipping addition of directories.")
+                    return []
+
+                for result in data.get("results", []):
+                    if result.get("status") in (200, 301, 302):
+                        new_directory = result.get("input", {}).get("FUZZ")
+                        if new_directory and new_directory not in directories:
+                            directories.append(new_directory)
+
+        except json.JSONDecodeError:
+            print(f"Error parsing JSON in file: {file_path}")
+        except Exception as e:
+            print(f"An error occurred with file {file_path}: {e}")
+
+        return directories
+
+    def extract_ffuf_results(self, base_dir):
+        found_urls = []
+
+        for root, _, files in os.walk(base_dir):
+            for file in files:
+                if file.endswith(".json"):
+                    file_path = os.path.join(root, file)
+                    with open(file_path, 'r') as f:
+                        try:
+                            data = json.load(f)
+                            for result in data.get("results", []):
+                                if len(data.get("results", [])) > 50:
+                                    self.print("FFUF", "More than 50 results found. Skipping addition of URLs.")
+                                elif result.get("url"):
+                                    found_urls.append(result.get("url").replace('//', '/').replace(':/', '://'))
+                        except json.JSONDecodeError:
+                            print(f"Error parsing JSON in file: {file_path}")
+                        except Exception as e:
+                            print(f"An error occurred with file {file_path}: {e}")
+
+        return found_urls
+
+    def ffuf(self):
+        if self.fuzz:
+            for url in self.all_subdomains_up:
+                self.ffuf_scan(url)
+
+            self.ffuf_result = self.extract_ffuf_results(f"{self.dir_path}/ffuf/")
+
+            if self.ffuf_result:
+                with open(f"{self.dir_path}/ffuf_result.txt", "w") as f:
+                    f.write("\n".join(self.ffuf_result))
+
+    def report_gen(self):
+        self.cmd(f"python3 report_gen.py -d {self.dir_path} -o {self.dir_path}/report.pdf")
+
+        self.print("Report", "Report generated:")
+        self.print("Report", f"{self.dir_path}/report.pdf")
+
     def wpscan(self):
 
         def single_wpscan(wp_domain):
@@ -573,6 +738,10 @@ def script_init(args) -> str:
     dir_path = os.path.join(domain_folder, scan_folder)
     mkdir(dir_path)
 
+    # Create 'ffuf' folder inside the timestamped scan folder
+    ffuf_folder = os.path.join(dir_path, "ffuf")
+    mkdir(ffuf_folder)
+
     return dir_path
 
 
@@ -591,6 +760,8 @@ def main():
     parser.add_argument('--wpscan-api-token', type=str, help='The WPScan API Token to display vulnerability data', default='')
     parser.add_argument('--use-notify', action='store_true', help='Run notify on completion')
     parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
+    parser.add_argument('--htb', action='store_true', help='HackTheBox mode')
+    parser.add_argument('--fuzz', action='store_true', help='Enable ffuf')
 
     args = parser.parse_args()
 
@@ -615,9 +786,13 @@ def main():
         wpscan_api_token=args.wpscan_api_token,
         use_notify=args.use_notify,
         cloud_upload=args.cloud_upload,
+        htb=args.htb,
+        fuzz=args.fuzz
     )
 
     try:
+        hax.htb_add_hosts()
+        hax.ffuf_vhosts()
         hax.check_ip()
         hax.dnsx_subdomains()
         hax.subfinder()
@@ -626,10 +801,12 @@ def main():
         hax.dnsx_ips()
         hax.naabu()
         hax.httpx()
+        hax.ffuf()
         hax.wpscan()
         hax.acunetix()
         hax.nuclei()
         hax.notify()
+        hax.report_gen()
 
         print(f"\ncd {dir_path}\n")
     except KeyboardInterrupt:

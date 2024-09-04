@@ -4,13 +4,16 @@ services:
       context: .
       args:
         - NUCLEI_API_KEY=${NUCLEI_API_KEY}
+        - HTB_OPENVPN_FILE=${HTB_OPENVPN_FILE}
     container_name: haxunit
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - app-network
-      - webnet
+#      - /etc/hosts:/etc/hosts
+#    networks:
+#      - app-network
+#      - webnet
+    network_mode: host
     depends_on:
       - wpscan
     entrypoint: ["tail", "-f", "/dev/null"]
@@ -19,22 +22,33 @@ services:
       - ACUNETIX_THRESHOLD=${ACUNETIX_THRESHOLD}
       - ACUNETIX_API_KEY=${ACUNETIX_API_KEY}
       - NUCLEI_API_KEY=${NUCLEI_API_KEY}
+      - HTB_OPENVPN_FILE=${HTB_OPENVPN_FILE}
     dns:
       - 1.1.1.1
       - 1.0.0.1
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   wpscan:
     image: wpscanteam/wpscan
     container_name: wpscan
-    networks:
-      - app-network
-      - webnet
+#    networks:
+#      - app-network
+#      - webnet
+    network_mode: host
     entrypoint: ["tail", "-f", "/dev/null"]
     environment:
       - WPSCAN_API_KEY=${WPSCAN_API_KEY}
 
 networks:
+#  app-network:
+#    driver: bridge
   app-network:
-    driver: bridge
+    external: true
+    name: host
   webnet:
     driver: bridge
