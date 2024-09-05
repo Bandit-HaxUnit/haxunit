@@ -137,7 +137,10 @@ class HaxUnit:
 
 
     def motd(self):
-        self.print("MOTD", get("https://haxunit.com/motd").text)
+        try:
+            self.print("MOTD", get("https://haxunit.com/motd").text)
+        except:
+            pass
 
     def cmd(self, cmd: str, silent=False) -> str:
         cmd = " ".join(cmd.split())
