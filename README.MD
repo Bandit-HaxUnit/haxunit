@@ -50,10 +50,15 @@ NUCLEI_API_KEY=
 WPSCAN_API_KEY=
 ```
 
-3. **Build and Run Docker Compose:**
+3. **Set executable permissions for scripts:**
+```bash
+chmod +x rebuild-compose.sh open-bash.sh 
+```
+
+4. **Build and Run Docker Compose:**
 
 ```bash
-chmod +x rebuild-compose.sh && ./rebuild-compose.sh
+./rebuild-compose.sh
  ```
  
  Once the installation completes successfully, you'll be inside the Docker container, ready to execute HaxUnit:
@@ -66,6 +71,18 @@ Time to find those vulnerabilities and patch them like a pro! 🕵️‍♂️�
 🚀 To start scanning, run the following command:
 haxunit -d <domain>
  ```
+
+That's it, you're all set to start scanning domains with HaxUnit!
+
+<br>
+
+### 🐚 Open container if already running
+
+To open a bash shell inside the HaxUnit container, run the following command:
+
+```bash
+./open-bash.sh
+```
 
 # 🛠️ Install HaxUnit Manually
 
@@ -281,7 +298,7 @@ haxunit -d example.com --use-acunetix
  To install Acunetix, execute the following command:
 
 ```commandline
-bash <(wget -qO- https://raw.githubusercontent.com/Bandit-HaxUnit/acu/main/install.sh) vouu/acuss:14.7.220228146
+bash <(wget -qO- https://raw.githubusercontent.com/Bandit-HaxUnit/acu/main/install.sh) xrsec/awvs:24.4.240427095
 ```
 
 This will download and install the Acunetix container. </br>
