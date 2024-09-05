@@ -1,3 +1,23 @@
+#!/bin/bash
+
+if ! command -v docker-compose &> /dev/null
+then
+    echo "[HaxUnit] Docker Compose is not installed. Installing Docker Compose..."
+
+    # Install Docker Compose (assuming Linux environment with sudo)
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.11.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    # Verify installation
+    if command -v docker-compose &> /dev/null
+    then
+        echo "[HaxUnit] Docker Compose installed successfully."
+    else
+        echo "[HaxUnit] Failed to install Docker Compose. Exiting."
+        exit 1
+    fi
+fi
+
 echo "[HaxUnit] Running docker-compose down"
 docker-compose down --volumes --remove-orphans
 

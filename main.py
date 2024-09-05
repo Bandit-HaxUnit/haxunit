@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import csv
 from copy import deepcopy
 import ipaddress
+from traceback import print_exc
 
 import hashlib
 import platform
@@ -87,10 +88,6 @@ class HaxUnit:
 
         self.wp_result_filenames = []
 
-        self.write_subdomains()
-        # input("wait")
-        # self.cmd("clear")
-
         print(Colors.BOLD)
         print("""                                                                         
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -101,16 +98,24 @@ class HaxUnit:
 █  ████  ██  ████  ██  ████  ███      ███  ███   ██        █████  ████
 ██████████████████████████████████████████████████████████████████████
 
-                                       v4.0 - haxunit.com""")
+                                       v4.1 - haxunit.com""")
         print()
 
         if self.install_all:
             self.install_all_tools()
-            self.print("Init", "All tools are successfully installed - good luck!", Colors.SUCCESS)
+            self.print("Init", "All tools are successfully installed.", Colors.SUCCESS)
+            print()
+            self.print("INFO", f"Please run 'source ~/.bashrc' or restart your terminal for changes to take effect.", Colors.WARNING)
             exit()
         elif not self.site:
             self.print("Init", "Please pass a domain (-d)", Colors.FAIL)
             exit()
+
+        if not self.check_tools():
+            self.print("Init", "Please install all tools first using --install", Colors.FAIL)
+            exit()
+
+        self.write_subdomains()
 
         print("\n[HaxUnit] Target:", site)
         print(Colors.RESET)
@@ -130,9 +135,13 @@ class HaxUnit:
         except ValueError:
             return False
 
-    def cmd(self, cmd: str) -> str:
+
+    def motd(self):
+        self.print("MOTD", get("https://haxunit.com/motd").text)
+
+    def cmd(self, cmd: str, silent=False) -> str:
         cmd = " ".join(cmd.split())
-        if self.verbose:
+        if self.verbose and not silent:
             self.print("CMD", cmd)
         subprocess_cmd = Popen(
             cmd,
@@ -140,7 +149,7 @@ class HaxUnit:
             stdout=PIPE
         )
         subprocess_return = subprocess_cmd.stdout.read().decode("utf-8").strip()
-        if subprocess_return:
+        if subprocess_return and not silent:
             print(subprocess_return)
         return subprocess_return
 
@@ -167,6 +176,12 @@ class HaxUnit:
             all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _]) + "\n"
             # print(all_subdomains_text)
             f.write(all_subdomains_text)
+
+    def check_tools(self):
+        for tool in ["dnsx", "subfinder", "katana", "unfurl", "alterx", "dnsx", "naabu", "httpx", "nuclei", "notify", "ffuf"]:
+            if not self.cmd(f"command -v {tool}", True):
+                return False
+        return True
 
     def httpx(self) -> None:
         self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt -fc 301,400,521 {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
@@ -674,7 +689,16 @@ class HaxUnit:
                     pool.map(single_wpscan, wordpress_domains)
 
     def install_wpscan(self):
-        self.cmd("docker pull wpscanteam/wpscan")
+        if not self.cmd(f"command -v docker", True):
+            self.print("Installer WPSCAN", "Docker is not installed - please install docker first to install wpscan", Colors.FAIL)
+        else:
+            result = self.cmd(f"docker images -q wpscanteam/wpscan")
+            if result:
+                self.print("INFO", f"The image 'wpscanteam/wpscan' is already pulled.")
+            else:
+                self.print("INFO", f"The image 'wpscanteam/wpscan' is not found. Pulling the image now...")
+                self.cmd("docker pull wpscanteam/wpscan")
+
 
     def install_ripgen(self):
         for rg_cmd in (
@@ -687,20 +711,61 @@ class HaxUnit:
         ):
             self.cmd(rg_cmd)
 
+    def install_docker(self):
+        result = self.cmd(f"command -v docker")
+        if not result:
+            self.cmd("sudo apt-get update")
+            self.cmd("sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
+            self.cmd("curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -")
+            self.cmd('sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"')
+            self.cmd("sudo apt-get update")
+            self.cmd("sudo apt-get install -y docker-ce")
+
+    def install_go(self):
+        result = self.cmd(f"command -v go")
+        if not result:
+            if self.ask("Go is not installed. Would you like to install it? "):
+                self.cmd(f"wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz -O /tmp/go.tar.gz")
+
+                self.cmd("sudo tar -C /usr/local -xzf /tmp/go.tar.gz")
+
+                self.cmd("rm /tmp/go.tar.gz")
+
+                go_path = "/usr/local/go/bin"
+                if go_path not in os.environ["PATH"]:
+                    self.cmd(f"echo 'export PATH=$PATH:{go_path}' >> ~/.profile")
+                    self.cmd("source ~/.profile")
+
+                result = self.cmd(f"command -v go")
+                if result:
+                    self.print("SUCCESS", "Go installed successfully.")
+                else:
+                    self.print("ERROR", "Go installation failed.")
+
+    def add_go_to_path(self):
+        user_shell = self.cmd("echo $SHELL")
+
+        if "zsh" in user_shell:
+            shell_config_file = "~/.zshrc"
+        elif "bash" in user_shell:
+            shell_config_file = "~/.bashrc"
+        else:
+            self.print("ERROR", "Unsupported shell. Only bash or zsh are supported.")
+            return
+
+        self.cmd(f"echo 'export PATH=$PATH:$HOME/go/bin' >> {shell_config_file}")
+
+        self.cmd(f"export PATH=$PATH:$HOME/go/bin")
+
+        self.print("INFO", f"$HOME/go/bin added to {shell_config_file} and sourced successfully.")
+
     def install_all_tools(self):
 
-        self.install_ripgen()
+        self.install_docker()
         self.install_wpscan()
 
-        self.print("Installer", "Installing gau")
-        for text, cmd in (
-                (f"Downloading gau", f"wget https://github.com/lc/gau/releases/download/v2.2.3/gau_2.2.3_linux_amd64.tar.gz --quiet"),
-                ("Extracting tar.gz", f"tar xf gau_2.2.3_linux_amd64.tar.gz"),
-                (f"Moving gau to bin", f"sudo mv gau /usr/local/bin/gau"),
-                ("Cleanup", f"rm -f gau_2.2.3_linux_amd64.tar.gz README.md LICENSE.md LICENSE")
-        ):
-            if text and cmd:
-                self.cmd(cmd)
+        self.install_go()
+        self.add_go_to_path()
 
         for cmd_tool in (
                 "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest",
@@ -709,10 +774,14 @@ class HaxUnit:
                 "go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
                 "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
                 "go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+                "echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc",
                 "nuclei -update-templates",
                 "go install github.com/lc/gau/v2/cmd/gau@latest",
                 "go install github.com/tomnomnom/unfurl@latest",
                 "go install -v github.com/projectdiscovery/notify/cmd/notify@latest",
+                "go install github.com/projectdiscovery/katana/cmd/katana@latest",
+                "go install -v github.com/projectdiscovery/alterx/cmd/alterx@latest",
+                "go install -v github.com/ffuf/ffuf/v2@latest"
         ):
             self.cmd(cmd_tool)
 
@@ -791,6 +860,7 @@ def main():
     )
 
     try:
+        hax.motd()
         hax.htb_add_hosts()
         hax.ffuf_vhosts()
         hax.check_ip()
@@ -811,6 +881,9 @@ def main():
         print(f"\ncd {dir_path}\n")
     except KeyboardInterrupt:
         print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{Colors.OK}KeyboardInterrupt{Colors.RESET}] {Colors.WARNING}Aborted{Colors.RESET}")
+    except:
+        print_exc()
+        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{Colors.FAIL}Error{Colors.RESET}] {Colors.WARNING}An error occurred - report it at the discord https://haxunit.com/discord.php{Colors.RESET}")
 
 
 if __name__ == '__main__':
