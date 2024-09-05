@@ -310,8 +310,8 @@ Acunetix can be accessed at https://localhost:3443. <br>
    <summary>Use the following default credentials to log in:</summary>
 
 ```commandline
-Username: awvs@awvs.com
-Password: Awvs@awvs.com
+Username: awvs@awvs.lan
+Password: Awvs@awvs.lan
 ```
 </details>
 
