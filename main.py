@@ -727,23 +727,26 @@ class HaxUnit:
     def install_go(self):
         result = self.cmd(f"command -v go")
         if not result:
-            if self.ask("Go is not installed. Would you like to install it? "):
-                self.cmd(f"wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz -O /tmp/go.tar.gz")
-
-                self.cmd("sudo tar -C /usr/local -xzf /tmp/go.tar.gz")
-
-                self.cmd("rm /tmp/go.tar.gz")
-
-                go_path = "/usr/local/go/bin"
-                if go_path not in os.environ["PATH"]:
-                    self.cmd(f"echo 'export PATH=$PATH:{go_path}' >> ~/.profile")
-                    self.cmd("source ~/.profile")
-
-                result = self.cmd(f"command -v go")
-                if result:
-                    self.print("SUCCESS", "Go installed successfully.")
-                else:
-                    self.print("ERROR", "Go installation failed.")
+            self.print("INFO", "Go is not installed. Please install Go first manually.")
+            exit()
+            
+            # if self.ask("Go is not installed. Would you like to install it? "):
+            #     self.cmd(f"wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz -O /tmp/go.tar.gz")
+            #
+            #     self.cmd("sudo tar -C /usr/local -xzf /tmp/go.tar.gz")
+            #
+            #     self.cmd("rm /tmp/go.tar.gz")
+            #
+            #     go_path = "/usr/local/go/bin"
+            #     if go_path not in os.environ["PATH"]:
+            #         self.cmd(f"echo 'export PATH=$PATH:{go_path}' >> ~/.profile")
+            #         self.cmd("source ~/.profile")
+            #
+            #     result = self.cmd(f"command -v go")
+            #     if result:
+            #         self.print("SUCCESS", "Go installed successfully.")
+            #     else:
+            #         self.print("ERROR", "Go installation failed.")
 
     def add_go_to_path(self):
         user_shell = self.cmd("echo $SHELL")
