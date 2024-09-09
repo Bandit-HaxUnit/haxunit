@@ -298,7 +298,7 @@ haxunit -d example.com --use-acunetix
  To install Acunetix, execute the following command:
 
 ```commandline
-bash <(wget -qO- https://raw.githubusercontent.com/Bandit-HaxUnit/acu/main/install.sh) xrsec/awvs:24.4.240427095
+bash <(wget -qO- https://raw.githubusercontent.com/Bandit-HaxUnit/acu/main/install.sh)
 ```
 
 This will download and install the Acunetix container. </br>
