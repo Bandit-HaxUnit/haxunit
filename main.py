@@ -700,7 +700,7 @@ class HaxUnit:
         if self.use_gpt:
             nuclei_result = self.read("nuclei_result.txt")
 
-            nuclei_text = "\n".join([_ for _ in nuclei_result.split("\n") if "[info]" not in _])
+            nuclei_text = "\n".join([_ for _ in nuclei_result if "[info]" not in _])
             print(nuclei_text)
 
             if nuclei_text:
