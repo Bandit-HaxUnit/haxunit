@@ -713,7 +713,7 @@ class HaxUnit:
                 """)
 
                 console = Console()
-                console.print(Markdown(gpt_result))
+                console.print(Markdown(gpt_result['text']))
 
 
     def install_wpscan(self):
