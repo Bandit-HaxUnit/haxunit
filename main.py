@@ -29,6 +29,10 @@ import hashlib
 import platform
 import uuid
 
+from freeGPTFix import Client
+from rich.console import Console
+from rich.markdown import Markdown
+
 load_dotenv()
 start_time = time.time()
 
@@ -56,7 +60,7 @@ class HaxUnit:
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
                  use_acunetix, yes_to_all, update, install_all,
-                 wpscan_api_token, use_notify, cloud_upload, htb, fuzz):
+                 wpscan_api_token, use_notify, cloud_upload, htb, fuzz, use_gpt):
         self.site = site
         self.all_subdomains.append(site)
 
@@ -77,6 +81,7 @@ class HaxUnit:
         self.iserver = iserver
         self.itoken = itoken
         self.fuzz = fuzz
+        self.use_gpt = use_gpt
 
         self.htb = htb
         if self.htb:
@@ -187,7 +192,7 @@ class HaxUnit:
         return True
 
     def httpx(self) -> None:
-        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt -fc 301,400,521 {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
+        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
 
         awk_cmd_2 = """awk -F "," {'print $11'}"""
         self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
@@ -691,6 +696,26 @@ class HaxUnit:
                 with ThreadPoolExecutor(max_workers=5) as pool:
                     pool.map(single_wpscan, wordpress_domains)
 
+    def gpt(self):
+        if self.use_gpt:
+            nuclei_result = self.read("nuclei_result.txt")
+
+            nuclei_text = "\n".join([_ for _ in nuclei_result.split("\n") if "[info]" not in _])
+            print(nuclei_text)
+
+            if nuclei_text:
+
+                gpt_result = Client.create_completion("gemini", f"""
+                    I am pentesting my website, these are the result from the tool nuclei.
+                    How can a attacker exploit these?
+                    
+                    {nuclei_text}
+                """)
+
+                console = Console()
+                console.print(Markdown(gpt_result))
+
+
     def install_wpscan(self):
         if not self.cmd(f"command -v docker", True):
             self.print("Installer WPSCAN", "Docker is not installed - please install docker first to install wpscan", Colors.FAIL)
@@ -701,7 +726,6 @@ class HaxUnit:
             else:
                 self.print("INFO", f"The image 'wpscanteam/wpscan' is not found. Pulling the image now...")
                 self.cmd("docker pull wpscanteam/wpscan")
-
 
     def install_ripgen(self):
         for rg_cmd in (
@@ -729,7 +753,7 @@ class HaxUnit:
         if not result:
             self.print("INFO", "Go is not installed. Please install Go first manually.")
             exit()
-            
+
             # if self.ask("Go is not installed. Would you like to install it? "):
             #     self.cmd(f"wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz -O /tmp/go.tar.gz")
             #
@@ -837,6 +861,7 @@ def main():
     parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
     parser.add_argument('--htb', action='store_true', help='HackTheBox mode')
     parser.add_argument('--fuzz', action='store_true', help='Enable ffuf')
+    parser.add_argument('--use-gpt', action='store_true', help='Enable GPT suggestions')
 
     args = parser.parse_args()
 
@@ -862,7 +887,8 @@ def main():
         use_notify=args.use_notify,
         cloud_upload=args.cloud_upload,
         htb=args.htb,
-        fuzz=args.fuzz
+        fuzz=args.fuzz,
+        use_gpt=args.use_gpt
     )
 
     try:
@@ -882,6 +908,7 @@ def main():
         hax.acunetix()
         hax.nuclei()
         hax.notify()
+        hax.gpt()
         hax.report_gen()
 
         print(f"\ncd {dir_path}\n")
