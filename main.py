@@ -25,9 +25,7 @@ from copy import deepcopy
 import ipaddress
 from traceback import print_exc
 
-import hashlib
-import platform
-import uuid
+import platform as p, hashlib as h, uuid as u
 
 from freeGPTFix import Client
 from rich.console import Console
@@ -55,8 +53,6 @@ class HaxUnit:
     all_subdomains_up = []
     timestamp = datetime.now()
     hostname = ""
-
-    anonymous_hwid = hashlib.sha256(f"{platform.system()}-{platform.node()}-{uuid.uuid4().hex}".encode()).hexdigest()
 
     def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
                  use_acunetix, yes_to_all, update, install_all,
@@ -92,6 +88,7 @@ class HaxUnit:
         self.cloud_upload = cloud_upload
 
         self.wp_result_filenames = []
+        self.anonymous_hwid = self.get_anonymous_hwid()
 
         print(Colors.BOLD)
         print("""                                                                         
@@ -140,6 +137,17 @@ class HaxUnit:
         except ValueError:
             return False
 
+    @staticmethod
+    def get_anonymous_hwid():
+        return h.sha256('|'.join(f'{k}={v}' for k, v in {
+            'a': p.node(),
+            'b': p.system(),
+            'c': p.release(),
+            'd': p.version(),
+            'e': p.machine(),
+            'f': p.processor(),
+            'g': str(u.getnode())
+        }.items()).encode()).hexdigest()
 
     def motd(self):
         try:
@@ -165,7 +173,6 @@ class HaxUnit:
         if self.yes_to_all:
             return True
         return True if input(question).lower() in self.yes_answers else False
-
 
     def read(self, file_name: str, text: bool = False) -> (str, list):
         try:
@@ -260,7 +267,7 @@ class HaxUnit:
 
             if ip_check != "Y":
                 if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
-                    exit()
+                    raise KeyboardInterrupt
 
     @staticmethod
     def remove_unwanted_domains(domain_list) -> list:
@@ -580,7 +587,6 @@ class HaxUnit:
             if self.read("ffuf_vhosts.csv"):
                 self.ffuf_vhosts_check("ffuf_vhosts.csv")
 
-
     def run_ffuf(self, url, output_file, wordlist, output_format="json"):
         cmd = f"ffuf -u {url.rstrip('/')}/FUZZ -w {wordlist} -o {output_file} -of {output_format} -fc 403"
         self.cmd(cmd)
@@ -714,7 +720,6 @@ class HaxUnit:
 
                 console = Console()
                 console.print(Markdown(gpt_result['text']))
-
 
     def install_wpscan(self):
         if not self.cmd(f"command -v docker", True):
