@@ -1,105 +1,113 @@
-# Use an official Python base image
-FROM python:3.12
+#
+# ===== Builder Stage =====
+#
+# Using a specific, version-pinned Alpine image for a minimal and secure build environment.
+# Alpine is significantly smaller than the default Debian-based images.
+FROM golang:1.24.4-alpine AS builder
 
-# Switch default shell to bash
-RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+# Set build-time arguments.
+ARG NUCLEI_API_KEY
 
-# Install necessary packages and tools
+# Install only essential build-time dependencies.
+# Using --no-cache reduces image size. git is needed for 'go install'.
+RUN apk add --no-cache git
+
+# Set up Go environment for the builder.
+ENV GOPATH="/go"
+ENV PATH="${GOPATH}/bin:/usr/local/go/bin:${PATH}"
+
+# Create a non-root user for the build process itself. This is an advanced
+# security practice to avoid running even the build commands as root.
+RUN addgroup -S builder && adduser -S -G builder builder
+USER builder
+WORKDIR /home/builder
+
+# --- Go Tooling Installation ---
+# First, copy only the necessary files to download dependencies.
+# This layer is only re-built if the list of tools changes.
+COPY --chown=builder:builder go.mod go.sum ./
+RUN go mod download
+
+# Now, install the tools. This leverages the downloaded dependencies.
+RUN go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+RUN /home/builder/go/bin/pdtm -ia -bp /home/builder/go/bin
+RUN go install -v github.com/tomnomnom/unfurl@latest
+RUN go install -v github.com/ffuf/ffuf/v2@latest
+
+# Update Nuclei templates and authenticate if the API key is provided.
+# This runs as the non-root builder user.
+RUN /home/builder/go/bin/nuclei -update-templates
+RUN if [ -n "$NUCLEI_API_KEY" ]; then \
+        echo "$NUCLEI_API_KEY" | /home/builder/go/bin/nuclei -auth; \
+    else \
+        echo "NUCLEI_API_KEY is not set, skipping Nuclei authentication."; \
+    fi
+
+#
+# ===== Final Stage =====
+#
+# Start from a minimal, non-root base image. python:3.12-slim is a good choice.
+FROM python:3.12-slim
+
+# Set environment variables for Python.
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Create a non-root user and group for the final application.
+# The user is named 'haxunit' for clarity.
+RUN addgroup --system haxunit && adduser --system --ingroup haxunit haxunit
+
+# Install only essential runtime dependencies.
+# We are NOT installing docker.io. The container should use the host's Docker socket if needed.
+# --no-install-recommends prevents installation of unnecessary packages.
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         expect \
         sudo \
-        docker.io \
-        wget \
-        tar \
         cewl \
         vim \
         dos2unix \
         tmux \
         openvpn \
         libpcap-dev && \
+    # Clean up APT cache to reduce image size.
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Go
-ENV GO_VERSION=1.22.5
-RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
-    rm go${GO_VERSION}.linux-amd64.tar.gz
-
-# Set up Go environment
-ENV PATH="/usr/local/go/bin:/root/go/bin:$PATH"
-ENV GOPATH="/root/go"
-ENV GOBIN="/root/go/bin"
-
-# Install tools
-RUN go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-RUN go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-RUN go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-RUN go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-RUN go install github.com/projectdiscovery/katana/cmd/katana@latest
-RUN go install github.com/tomnomnom/unfurl@latest
-RUN go install -v github.com/projectdiscovery/notify/cmd/notify@latest
-RUN go install -v github.com/projectdiscovery/alterx/cmd/alterx@latest
-RUN go install -v github.com/ffuf/ffuf/v2@latest
-
-# TO-DO: Implement pdtm to install tools
-# go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
-
-# Update nuclei templates
-RUN nuclei -update-templates
-
-# Set environment variable for API key
-ARG NUCLEI_API_KEY
-ENV NUCLEI_API_KEY=${NUCLEI_API_KEY}
-
-# Conditionally run expect if NUCLEI_API_KEY is set
-RUN if [ -n "$NUCLEI_API_KEY" ]; then \
-        expect -c ' \
-            spawn nuclei -auth; \
-            expect "Enter PDCP API Key (exit to abort):"; \
-            send "$env(NUCLEI_API_KEY)\r"; \
-            expect eof; \
-        '; \
-    else \
-        echo "NUCLEI_API_KEY is not set, skipping nuclei authentication"; \
-    fi
-
-# Set the working directory
+# Set the working directory and ensure it's owned by our non-root user.
 WORKDIR /app
+RUN chown haxunit:haxunit /app
 
-# Copy Python dependencies and install them
-COPY requirements.txt requirements.txt
+# Switch to the non-root user for all subsequent operations.
+USER haxunit
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# --- Python Dependencies ---
+# Copy and install Python requirements first to leverage caching.
+# This layer is only invalidated if requirements.txt changes.
+COPY --chown=haxunit:haxunit requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+ENV PATH="/home/haxunit/.local/bin:${PATH}"
 
-# Copy application code
-COPY . .
+# --- Application and Tooling Setup ---
+# Copy the compiled Go tools and Nuclei configuration from the builder stage.
+# Ensure correct ownership is set.
+COPY --from=builder --chown=haxunit:haxunit /home/builder/go/bin/ /home/haxunit/.local/bin/
+COPY --from=builder --chown=haxunit:haxunit /home/builder/.config/nuclei/ /home/haxunit/.config/nuclei/
 
-# Install pwncat-cs
-#RUN pip install pwncat-cs
+# Copy the rest of the application code.
+# This is one of the last steps, as code changes most frequently.
+COPY --chown=haxunit:haxunit . .
 
-# Convert main.py to Unix format
-RUN dos2unix /app/main.py
+# Convert main.py to Unix format and make it executable.
+RUN dos2unix /app/main.py && \
+    chmod +x /app/main.py
 
-# Make main.py script executable
-RUN chmod +x /app/main.py
+# Create a symlink in a user-owned bin directory for easy execution.
+RUN ln -s /app/main.py /home/haxunit/.local/bin/haxunit
 
-# Create a symlink
-RUN ln -s /app/main.py /usr/local/bin/haxunit
-
-# Create a directory for OpenVPN configuration
+# Create a directory for OpenVPN configuration.
 RUN mkdir -p /etc/openvpn/
 
-# Copy OpenVPN configuration file
-ARG HTB_OPENVPN_FILE
-
-# Need to fix auto connect to HTB VPN
-CMD if [ -n "$HTB_OPENVPN_FILE" ]; then \
-      tmux new-session -d "openvpn --config ${HTB_OPENVPN_FILE}"; \
-    else \
-      echo "HTB_OPENVPN_FILE is empty. Skipping VPN connection."; \
-    fi && \
-    tail -f /dev/null
+# The CMD is simplified. The HTB_OPENVPN_FILE logic should be handled by an
+# entrypoint script or the orchestration layer (e.g., Docker Compose).
+CMD ["tail", "-f", "/dev/null"]

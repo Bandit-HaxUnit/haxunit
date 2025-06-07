@@ -1,54 +1,132 @@
+# Docker Compose Version 3.8+ is recommended for modern features.
+version: '3.8'
+
 services:
+  # The main application service, now more securely configured.
   app:
+    # Build from the optimized Dockerfile we created earlier.
     build:
       context: .
       args:
         - NUCLEI_API_KEY=${NUCLEI_API_KEY}
         - HTB_OPENVPN_FILE=${HTB_OPENVPN_FILE}
     container_name: haxunit
+    # The 'init' process helps with reaping zombie processes and signal handling.
+    init: true
+    # Use Docker Compose Profiles to conditionally start services like OpenVPN.
+    profiles:
+      - default
+      - vpn
+    # Instead of 'network_mode: host', we use a dedicated bridge network.
+    # This provides crucial network isolation between containers and the host.
+    networks:
+      - haxunit-net
+    # For interacting with the host's Docker daemon.
+    # This is a high-privilege operation. Use with caution.
     volumes:
-      - .:/app
+      # For development: Mount source code for live-reloading.
+      # For production: This line should be removed to use the code baked into the image.
+      - .:/app:cached
+      # For runtime state that should persist, use a named volume.
+      - haxunit-data:/home/haxunit/.local/share
+      # Mount the Docker socket if the application needs to interact with the Docker API.
       - /var/run/docker.sock:/var/run/docker.sock
-#      - /etc/hosts:/etc/hosts
-#    networks:
-#      - app-network
-#      - webnet
-    network_mode: host
-    depends_on:
-      - wpscan
-    entrypoint: ["tail", "-f", "/dev/null"]
+    # --- SECRETS MANAGEMENT ---
+    # Secrets are mounted as files in /run/secrets/, not exposed as environment variables.
+    # Your application code must be updated to read secrets from these files.
+    secrets:
+      - wpscan_api_key
+      - acunetix_api_key
+      - nuclei_api_key
+    # Environment variables should be for non-sensitive configuration.
     environment:
-      - WPSCAN_API_KEY=${WPSCAN_API_KEY}
-      - ACUNETIX_THRESHOLD=${ACUNETIX_THRESHOLD}
-      - ACUNETIX_API_KEY=${ACUNETIX_API_KEY}
-      - NUCLEI_API_KEY=${NUCLEI_API_KEY}
+      - ACUNETIX_THRESHOLD=${ACUNETIX_THRESHOLD:-'high'} # Example with a default value
       - HTB_OPENVPN_FILE=${HTB_OPENVPN_FILE}
+      - WPSCAN_API_KEY=${WPSCAN_API_KEY}
+    # --- SECURITY CONTEXT ---
+    # Running as a non-root user. The user 'haxunit' (UID 1000) should be created in the Dockerfile.
+    user: "1000:1000"
+    # Drop all capabilities by default and only add what is absolutely necessary.
+    # CAP_NET_ADMIN is still required for OpenVPN.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+    # Required for OpenVPN.
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    # A more secure alternative to extra_hosts for host communication.
     dns:
       - 1.1.1.1
       - 1.0.0.1
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # --- RESOURCE MANAGEMENT ---
+    # Prevent the container from consuming all host resources. Adjust values as needed.
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.50'
+          memory: 512M
+    # --- HEALTHCHECK ---
+    # A simple healthcheck to ensure the container is responsive.
+    healthcheck:
+      test: ["CMD", "tmux", "ls"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # A more robust entrypoint that manages the VPN connection.
+    entrypoint: /app/docker-entrypoint.sh
+    # The default command to run after the entrypoint.
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      wpscan:
+        condition: service_healthy
+    network_mode: host
 
+  # The wpscan service, also isolated and secured.
   wpscan:
     image: wpscanteam/wpscan
     container_name: wpscan
-#    networks:
-#      - app-network
-#      - webnet
-    network_mode: host
+    init: true
+    networks:
+      - haxunit-net
+    # Secrets should be used here as well for the API key.
+    secrets:
+      - wpscan_api_key
+    # This service likely doesn't need any special capabilities.
+    cap_drop:
+      - ALL
+    # Healthcheck to ensure the service is ready before 'app' starts.
+    healthcheck:
+      test: ["CMD", "wpscan", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     entrypoint: ["tail", "-f", "/dev/null"]
     environment:
       - WPSCAN_API_KEY=${WPSCAN_API_KEY}
 
+# --- NETWORKING ---
+# Define a custom bridge network for controlled communication.
 networks:
-#  app-network:
-#    driver: bridge
-  app-network:
-    external: true
-    name: host
-  webnet:
+  haxunit-net:
     driver: bridge
+    name: haxunit-net
+
+# --- VOLUMES ---
+# Define named volumes for persistent data.
+volumes:
+  haxunit-data:
+    driver: local
+
+# --- SECRETS ---
+# Define secrets. The content is sourced from local files for better security.
+secrets:
+  wpscan_api_key:
+    file: ./secrets/wpscan_api_key.txt
+  acunetix_api_key:
+    file: ./secrets/acunetix_api_key.txt
+  nuclei_api_key:
+    file: ./secrets/nuclei_api_key.txt

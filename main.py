@@ -802,20 +802,22 @@ class HaxUnit:
         self.install_go()
         self.add_go_to_path()
 
+        # Install libpcap-dev needed for naabu
+        self.cmd("sudo apt install -y libpcap-dev")
+
+        # Install pdtm
+        self.cmd("go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest")
+
+        # Install projectdiscovery tools using pdtm into GOBIN
+        self.cmd("pdtm -ia -bp $HOME/go/bin")
+
+        # Update nuclei templates
+        self.cmd("nuclei -update-templates")
+
+        # Install other tools from github
         for cmd_tool in (
-                "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest",
-                "go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
-                "sudo apt install -y libpcap-dev",
-                "go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
-                "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
-                "go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
-                "echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc",
-                "nuclei -update-templates",
                 "go install github.com/lc/gau/v2/cmd/gau@latest",
                 "go install github.com/tomnomnom/unfurl@latest",
-                "go install -v github.com/projectdiscovery/notify/cmd/notify@latest",
-                "go install github.com/projectdiscovery/katana/cmd/katana@latest",
-                "go install -v github.com/projectdiscovery/alterx/cmd/alterx@latest",
                 "go install -v github.com/ffuf/ffuf/v2@latest"
         ):
             self.cmd(cmd_tool)
