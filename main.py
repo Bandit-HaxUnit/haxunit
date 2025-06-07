@@ -1362,12 +1362,11 @@ def main():
         hax.naabu()
         hax.httpx()
         
-        # Additional scanning
+        
+        # Vulnerability scanning
         hax.ffuf()
         hax.wpscan()
         hax.acunetix()
-        
-        # Vulnerability scanning
         hax.nuclei()
         
         # Post-processing
