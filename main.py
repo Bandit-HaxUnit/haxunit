@@ -182,7 +182,7 @@ class HaxUnit:
     def _print_banner():
         """Display the HaxUnit banner."""
         print(Colors.BOLD)
-        print("""
+        print(f"""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░  ░░░░  ░░░      ░░░  ░░░░  ░░  ░░░░  ░░   ░░░  ░░        ░░        ░
 ▒  ▒▒▒▒  ▒▒  ▒▒▒▒  ▒▒▒  ▒▒  ▒▒▒  ▒▒▒▒  ▒▒    ▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒
@@ -191,8 +191,7 @@ class HaxUnit:
 █  ████  ██  ████  ██  ████  ███      ███  ███   ██        █████  ████
 ██████████████████████████████████████████████████████████████████████
 
-                                       v4.1 - haxunit.com""")
-    
+                                       {HaxUnit.VERSION} - haxunit.com""")
     @staticmethod
     def print(title: str = "", text: str = "", color_type: str = "") -> None:
         """
