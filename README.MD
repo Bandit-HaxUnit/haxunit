@@ -18,16 +18,19 @@
 
 # 📘Intro
 
-HaxUnit is a Python script designed for comprehensive reconnaissance and security assessment of web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.</br>
+HaxUnit is a Python-based comprehensive reconnaissance and security assessment tool for web domains. It integrates various tools for subdomain enumeration, port scanning, vulnerability scanning, and more.</br>
 </br>
 HaxUnit is focused on simplicity and aims to be the best and most complete solution for web security assessments.
+
 ## ✨ Features
 
 - **Subdomain Enumeration**: Uses tools like Subfinder, DNSx, and custom bruteforce methods.
+- **AI-Powered Subdomain Prediction**: Integrates Subwiz for ML-based subdomain discovery.
 - **Port Scanning**: Utilizes Naabu for fast port scanning across discovered subdomains.
 - **Vulnerability Scanning**: Integrates Nuclei for detecting security issues across web applications.
 - **WordPress Scanning**: Uses WPScan to identify vulnerabilities in WordPress installations.
 - **Acunetix Integration**: Provides optional integration with Acunetix for web application security scanning.
+- **Automated Tool Management**: Uses pdtm for efficient ProjectDiscovery tool installation and updates.
 
 ## 🔥 Docker (recommended)</summary>
 
@@ -89,7 +92,7 @@ To open a bash shell inside the HaxUnit container, run the following command:
 Make sure you have the following software installed on your system:
 
 - `python3` (>=3.10)
-- `go` (>=1.122) 
+- `go` (>=1.22) 
 - `docker.io` (>=20.10.7)
 
 1. **Clone the Repository:**
@@ -139,7 +142,7 @@ Make sure you have the following software installed on your system:
 
     Finally, run the main script with the `--install` flag:
     ```sh
-    haxunit --install
+    python3 main.py --install
     ```
    
 If everything is installed correctly you should see the following output:
@@ -147,6 +150,7 @@ If everything is installed correctly you should see the following output:
 [HaxUnit] [Init] All tools are successfully installed - good luck!
 ```
 
+The installation process now uses `pdtm` (ProjectDiscovery Tool Manager) for efficient tool management and includes intelligent checks to avoid reinstalling already present tools.
 
 # 📖 Usage
 ```commandline
@@ -157,9 +161,9 @@ This will display help for the tool. Here are all the switches it supports.
 
 ```commandline
 usage: main.py [-h] [-d DOMAIN] [-m {quick,extensive}] [-v] [-b BIN] [-is ISERVER] [-it ITOKEN] [-acu] [-y] [-u] [-i] [--wpscan-api-token WPSCAN_API_TOKEN]
-               [--use-notify] [--cloud-upload]
+               [--use-notify] [--cloud-upload] [--htb] [--fuzz] [--use-gpt] [--skip-installers]
 
-HaxUnit
+HaxUnit - Web Domain Reconnaissance Tool
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -173,14 +177,18 @@ optional arguments:
                         interactsh server URL for self-hosted instance
   -it ITOKEN, --itoken ITOKEN
                         authentication token for self-hosted interactsh server
-  -acu, --use-acunetix  Acunetix API key
-  -y, --yes             yes to all
+  -acu, --use-acunetix  Enable Acunetix integration
+  -y, --yes             yes to all prompts
   -u, --update          update all tools
   -i, --install         install all tools
   --wpscan-api-token WPSCAN_API_TOKEN
                         The WPScan API Token to display vulnerability data
   --use-notify          Run notify on completion
   --cloud-upload        Upload results to ProjectDiscovery cloud
+  --htb                 HackTheBox mode
+  --fuzz                Enable ffuf fuzzing
+  --use-gpt             Enable GPT suggestions
+  --skip-installers     Skip tool installation checks
  ```
 
 ### Examples
@@ -198,6 +206,11 @@ haxunit -d example.com -y
 Run an extensive scan on `example.com` using Acunetix and uploading results to ProjectDiscovery cloud:
 ```commandline
 haxunit -d example.com -m extensive --use-acunetix --cloud-upload 
+```
+
+Skip installation checks for faster startup (when you know tools are installed):
+```commandline
+haxunit -d example.com --skip-installers
 ```
 
 ### Viewing Results
@@ -323,8 +336,9 @@ Password: Awvs@awvs.lan
 |-----------------|-----------------------|-------------------------------------------------------------------------------------------------------|
 | dnsx_subdomains | Subdomain discovery   | Use dnsx to find subdomains and brute force subdomains                                                |
 | subfinder       | Subdomain discovery   | Use subfinder to find subdomains                                                                      |
+| subwiz          | Subdomain discovery   | AI-powered subdomain prediction using machine learning                                                 |
 | katana          | Crawling              | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
-| ripgen          | Subdomain permutation | Generate and test subdomain permutations                                                              |
+| alterx          | Subdomain permutation | Generate and test subdomain permutations                                                              |
 | dnsx_ips        | Fetch IP addresses    | Use dnsx to fetch A records                                                                           |
 | naabu           | Port scan discovery   | Run naabu on the list of subdomains using list of common ports to discover HTTP services              |
 | httpx           | Subdomain validation  | Check all found subdomains if they are active                                                         |
@@ -337,6 +351,7 @@ Password: Awvs@awvs.lan
 
 # 🙏 Credits
 ### Special thanks to the team at [ProjectDiscovery](https://github.com/projectdiscovery) for their incredible range of tools.
+### Thanks to [HadrianSecurity](https://github.com/hadriansecurity) for the Subwiz AI subdomain prediction tool.
 
 </br></br>
 <p align="center">
