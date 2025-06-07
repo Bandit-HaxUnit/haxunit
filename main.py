@@ -1103,7 +1103,7 @@ class HaxUnit:
             self.print("Installer", "pdtm is already installed.", Colors.SUCCESS)
 
         # Install all projectdiscovery tools using pdtm
-        self.print("Installer", "Installing/Updating all ProjectDiscovery tools via pdtm...")
+        self.print("Installer", "Installing all ProjectDiscovery tools via pdtm...")
         self.cmd("pdtm -ia -bp $HOME/go/bin")
 
         # Update nuclei templates
