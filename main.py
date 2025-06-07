@@ -21,6 +21,7 @@ from os.path import exists
 from subprocess import PIPE, Popen
 from traceback import print_exc
 from urllib.parse import urlparse
+from json import dumps
 
 # Third-party imports
 import urllib3
