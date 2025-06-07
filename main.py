@@ -1,40 +1,47 @@
 #!/usr/bin/env python3
-import subprocess
+"""
+HaxUnit - Comprehensive reconnaissance and security assessment tool for web domains.
+"""
 
-# subprocess.call(["clear"])
-
-from requests import get, post
-
-import json
-from json import dumps, loads, load
-import urllib3
-
-urllib3.disable_warnings()
-from subprocess import PIPE, Popen
-import os
-from os.path import exists
-from os import mkdir, getenv
+# Standard library imports
 import argparse
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
-from dotenv import load_dotenv
-import time
-from urllib.parse import urlparse
 import csv
-from copy import deepcopy
+import hashlib as h
 import ipaddress
+import json
+import os
+import platform as p
+import time
+import uuid as u
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import datetime
+from os import getenv, mkdir
+from os.path import exists
+from subprocess import PIPE, Popen
 from traceback import print_exc
+from urllib.parse import urlparse
 
-import platform as p, hashlib as h, uuid as u
-
+# Third-party imports
+import urllib3
+from dotenv import load_dotenv
 from freeGPTFix import Client
+from requests import get, post
 from rich.console import Console
 from rich.markdown import Markdown
 
+# Disable SSL warnings
+urllib3.disable_warnings()
+
+# Load environment variables
 load_dotenv()
+
+# Global start time for elapsed time tracking
 start_time = time.time()
 
+
 class Colors:
+    """ANSI color codes for terminal output."""
     HEADER = '\033[95m'
     OK = '\033[94m'
     FAIL = '\033[91m'
@@ -45,21 +52,64 @@ class Colors:
 
 
 class HaxUnit:
-    yes_answers = ("y", "yes", "ye")
-
-    acunetix_email = acunetix_password = ""
-
-    all_subdomains = []
-    all_subdomains_up = []
-    timestamp = datetime.now()
-    hostname = ""
-
-    def __init__(self, site, mode, verbose, python_bin, dir_path, iserver, itoken,
-                 use_acunetix, yes_to_all, update, install_all,
-                 wpscan_api_token, use_notify, cloud_upload, htb, fuzz, use_gpt):
+    """Main class for HaxUnit reconnaissance tool."""
+    
+    # Class constants
+    YES_ANSWERS = ("y", "yes", "ye", "yh", "oui", "si", "ok")
+    VERSION = "v4.2" # 42 is the answer to life, the universe, and everything
+    
+    def __init__(
+        self,
+        site: str,
+        mode: str,
+        verbose: bool,
+        python_bin: str,
+        dir_path: str,
+        iserver: str,
+        itoken: str,
+        use_acunetix: bool,
+        yes_to_all: bool,
+        update: bool,
+        install_all: bool,
+        wpscan_api_token: str,
+        use_notify: bool,
+        cloud_upload: bool,
+        htb: bool,
+        fuzz: bool,
+        use_gpt: bool,
+        skip_installers: bool
+    ):
+        """
+        Initialize HaxUnit with configuration parameters.
+        
+        Args:
+            site: Target domain to scan
+            mode: Scan mode ('quick' or 'extensive')
+            verbose: Enable verbose output
+            python_bin: Python binary to use
+            dir_path: Directory path for scan results
+            iserver: Interactsh server URL
+            itoken: Interactsh authentication token
+            use_acunetix: Enable Acunetix integration
+            yes_to_all: Auto-confirm all prompts
+            update: Update all tools
+            install_all: Install all required tools
+            wpscan_api_token: WPScan API token
+            use_notify: Enable notifications
+            cloud_upload: Upload results to cloud
+            htb: HackTheBox mode
+            fuzz: Enable fuzzing
+            use_gpt: Enable GPT suggestions
+            skip_installers: Skip tool installation checks
+        """
+        # Initialize instance variables
         self.site = site
-        self.all_subdomains.append(site)
-
+        self.all_subdomains = [site] if site else []
+        self.all_subdomains_up = []
+        self.timestamp = datetime.now()
+        self.hostname = ""
+        
+        # Configuration flags
         self.verbose = verbose
         self.quick = mode == "quick"
         self.python_bin = python_bin
@@ -67,31 +117,72 @@ class HaxUnit:
         self.yes_to_all = yes_to_all
         self.update = update
         self.install_all = install_all
-
+        self.skip_installers = skip_installers
+        
+        # API keys and tokens
         self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
-
+        self.acunetix_api_key = getenv("ACUNETIX_API_KEY")
+        self.haxunit_api_key = getenv("HAXUNIT_API_KEY", "")
+        
+        # Acunetix configuration
         self.acunetix_threshold = 30
         self.use_acunetix = use_acunetix
-        self.acunetix_api_key = getenv("ACUNETIX_API_KEY")
-
+        
+        # Interactsh configuration
         self.iserver = iserver
         self.itoken = itoken
+        
+        # Feature flags
         self.fuzz = fuzz
         self.use_gpt = use_gpt
-
+        self.use_notify = use_notify
+        self.cloud_upload = cloud_upload
+        
+        # HTB specific configuration
         self.htb = htb
         if self.htb:
             self.ip = deepcopy(self.site)
-
-        self.haxunit_api_key = getenv("HAXUNIT_API_KEY", "")
-        self.use_notify = use_notify
-        self.cloud_upload = cloud_upload
-
+        
+        # Other instance variables
         self.wp_result_filenames = []
-        self.anonymous_hwid = self.get_anonymous_hwid()
-
+        self.anonymous_hwid = self._get_anonymous_hwid()
+        
+        # Display banner
+        self._print_banner()
+        
+        # Handle installation mode
+        if self.install_all:
+            self.install_all_tools()
+            self.print("Init", "All tools are successfully installed.", Colors.SUCCESS)
+            print()
+            self.print(
+                "INFO", 
+                "Please run 'source ~/.bashrc' or restart your terminal for changes to take effect.", 
+                Colors.WARNING
+            )
+            exit()
+        
+        # Validate site parameter
+        if not self.site:
+            self.print("Init", "Please pass a domain (-d)", Colors.FAIL)
+            exit()
+        
+        # Check tools installation
+        if not self.check_tools() and not self.skip_installers:
+            self.print("Init", "Please install all tools first using --install", Colors.FAIL)
+            exit()
+        
+        # Initialize subdomains file
+        self.write_subdomains()
+        
+        print(f"\n[HaxUnit] Target: {site}")
+        print(Colors.RESET)
+    
+    @staticmethod
+    def _print_banner():
+        """Display the HaxUnit banner."""
         print(Colors.BOLD)
-        print("""                                                                         
+        print(f"""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░  ░░░░  ░░░      ░░░  ░░░░  ░░  ░░░░  ░░   ░░░  ░░        ░░        ░
 ▒  ▒▒▒▒  ▒▒  ▒▒▒▒  ▒▒▒  ▒▒  ▒▒▒  ▒▒▒▒  ▒▒    ▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒
@@ -100,46 +191,53 @@ class HaxUnit:
 █  ████  ██  ████  ██  ████  ███      ███  ███   ██        █████  ████
 ██████████████████████████████████████████████████████████████████████
 
-                                       v4.1 - haxunit.com""")
-        print()
-
-        if self.install_all:
-            self.install_all_tools()
-            self.print("Init", "All tools are successfully installed.", Colors.SUCCESS)
-            print()
-            self.print("INFO", f"Please run 'source ~/.bashrc' or restart your terminal for changes to take effect.", Colors.WARNING)
-            exit()
-        elif not self.site:
-            self.print("Init", "Please pass a domain (-d)", Colors.FAIL)
-            exit()
-
-        if not self.check_tools():
-            self.print("Init", "Please install all tools first using --install", Colors.FAIL)
-            exit()
-
-        self.write_subdomains()
-
-        print("\n[HaxUnit] Target:", site)
-        print(Colors.RESET)
-
+                                       {HaxUnit.VERSION} - haxunit.com""")
     @staticmethod
-    def print(title: str = "", text: str = "", color_type="") -> None:
+    def print(title: str = "", text: str = "", color_type: str = "") -> None:
+        """
+        Print formatted output with timestamp and color.
+        
+        Args:
+            title: Section title
+            text: Message text
+            color_type: Color code to use
+        """
         elapsed_time = time.time() - start_time
         time_running = time.strftime("%M:%S", time.gmtime(elapsed_time))
-
-        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{time_running}] [{Colors.OK}{title}{Colors.RESET}] {color_type}{text}{Colors.RESET}")
-
+        
+        print(
+            f"[{Colors.BOLD}HaxUnit{Colors.RESET}] "
+            f"[{time_running}] "
+            f"[{Colors.OK}{title}{Colors.RESET}] "
+            f"{color_type}{text}{Colors.RESET}"
+        )
+    
     @staticmethod
-    def is_ip_address(string):
+    def is_ip_address(string: str) -> bool:
+        """
+        Check if a string is a valid IP address.
+        
+        Args:
+            string: String to check
+            
+        Returns:
+            bool: True if valid IP address, False otherwise
+        """
         try:
             ipaddress.ip_address(string)
             return True
         except ValueError:
             return False
-
+    
     @staticmethod
-    def get_anonymous_hwid():
-        return h.sha256('|'.join(f'{k}={v}' for k, v in {
+    def _get_anonymous_hwid() -> str:
+        """
+        Generate anonymous hardware ID for telemetry.
+        
+        Returns:
+            str: SHA256 hash of system information
+        """
+        system_info = {
             'a': p.node(),
             'b': p.system(),
             'c': p.release(),
@@ -147,130 +245,244 @@ class HaxUnit:
             'e': p.machine(),
             'f': p.processor(),
             'g': str(u.getnode())
-        }.items()).encode()).hexdigest()
+        }
+        
+        info_string = '|'.join(f'{k}={v}' for k, v in system_info.items())
+        return h.sha256(info_string.encode()).hexdigest()
 
     def motd(self):
+        """Display random noise for operators"""
         try:
-            self.print("MOTD", get("https://haxunit.com/motd").text)
-        except:
+            response = get("https://www.affirmations.dev/") # haxunit endpoint down - threw html in my face
+            affirmation = json.loads(response.text)["affirmation"] 
+            self.print("MOTD", affirmation)
+        except Exception:
             pass
 
-    def cmd(self, cmd: str, silent=False) -> str:
+    def cmd(self, cmd: str, silent: bool = False) -> str:
+        """
+        Execute a shell command and return output.
+        
+        Args:
+            cmd: Command to execute
+            silent: Suppress output if True
+            
+        Returns:
+            str: Command output
+        """
         cmd = " ".join(cmd.split())
+        
         if self.verbose and not silent:
             self.print("CMD", cmd)
-        subprocess_cmd = Popen(
-            cmd,
-            shell=True,
-            stdout=PIPE
-        )
-        subprocess_return = subprocess_cmd.stdout.read().decode("utf-8").strip()
-        if subprocess_return and not silent:
-            print(subprocess_return)
-        return subprocess_return
+        
+        process = Popen(cmd, shell=True, stdout=PIPE)
+        output = process.stdout.read().decode("utf-8").strip()
+        
+        if output and not silent:
+            print(output)
+        
+        return output
 
     def ask(self, question: str) -> bool:
+        """
+        Ask user a yes/no question.
+        
+        Args:
+            question: Question to ask
+            
+        Returns:
+            bool: True if user answered yes
+        """
         if self.yes_to_all:
             return True
-        return True if input(question).lower() in self.yes_answers else False
+        return input(question).lower() in self.YES_ANSWERS
 
-    def read(self, file_name: str, text: bool = False) -> (str, list):
+    def read(self, file_name: str, text: bool = False) -> str | list:
+        """
+        Read file contents.
+        
+        Args:
+            file_name: Name of file to read
+            text: Return as single string if True, list of lines if False
+            
+        Returns:
+            str or list: File contents
+        """
+        file_path = f"{self.dir_path}/{file_name}"
+        
         try:
-            if text:
-                return "\n".join(list(set([_.strip() for _ in open(f"{self.dir_path}/{file_name}", "r").readlines()])))
-            else:
-                return list(set([_.strip() for _ in open(f"{self.dir_path}/{file_name}", "r").readlines()]))
+            with open(file_path, "r") as f:
+                lines = [line.strip() for line in f.readlines()]
+                unique_lines = list(set(lines))
+                
+                if text:
+                    return "\n".join(unique_lines)
+                return unique_lines
         except FileNotFoundError:
-            if text:
-                return "FileNotFoundError"
-            else:
-                return []
+            return "FileNotFoundError" if text else []
 
-    def write_subdomains(self, mode="a") -> None:
-        with open(f"{self.dir_path}/all_subdomains.txt", mode) as f:
-            all_subdomains_text = "\n".join([_ for _ in list(set(self.all_subdomains)) if _]) + "\n"
-            # print(all_subdomains_text)
-            f.write(all_subdomains_text)
+    def write_subdomains(self, mode: str = "a") -> None:
+        """
+        Write subdomains to file.
+        
+        Args:
+            mode: File open mode ('a' for append, 'w' for write)
+        """
+        file_path = f"{self.dir_path}/all_subdomains.txt"
+        unique_subdomains = [sub for sub in set(self.all_subdomains) if sub]
+        
+        with open(file_path, mode) as f:
+            content = "\n".join(unique_subdomains) + "\n"
+            f.write(content)
 
-    def check_tools(self):
-        for tool in ["dnsx", "subfinder", "katana", "unfurl", "alterx", "dnsx", "naabu", "httpx", "nuclei", "notify", "ffuf"]:
-            if not self.cmd(f"command -v {tool}", True):
+    def check_tools(self) -> bool:
+        """
+        Check if all required tools are installed.
+        
+        Returns:
+            bool: True if all tools are installed
+        """
+        required_tools = [
+            "dnsx", "subfinder", "katana", "unfurl", "alterx",
+            "dnsx", "naabu", "httpx", "nuclei", "notify", "ffuf"
+        ]
+        
+        for tool in required_tools:
+            if not self.cmd(f"command -v {tool}", silent=True):
                 return False
         return True
 
     def httpx(self) -> None:
-        self.cmd(f"httpx -l {self.dir_path}/all_subdomains.txt {'' if self.verbose else '-silent'} -o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 {'-dashboard' if self.cloud_upload else ''}")
-
-        awk_cmd_2 = """awk -F "," {'print $11'}"""
-        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_2} | tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt")
-
-        awk_cmd_3 = """awk -F "," {'print $22'}"""
-        self.cmd(f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_3} | sort -u | head -n -1 >> {self.dir_path}/httpx_ips.txt")
-
-        self.cmd(f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnsx_ips.txt | sort -u > {self.dir_path}/all_ips.txt")
-
-        self.all_subdomains_up = self.remove_unwanted_domains(self.read("all_subdomains_up.txt"))
-
+        """Run httpx to check which subdomains are active."""
+        self.print("HTTPx", "Checking active subdomains...")
+        
+        # Run httpx scan
+        httpx_cmd = (
+            f"httpx -l {self.dir_path}/all_subdomains.txt "
+            f"{'' if self.verbose else '-silent'} "
+            f"-o {self.dir_path}/httpx_result.csv -td -cdn -csv -timeout 15 "
+            f"{'-dashboard' if self.cloud_upload else ''}"
+        )
+        self.cmd(httpx_cmd)
+        
+        # Extract active subdomains
+        awk_cmd = """awk -F "," {'print $11'}"""
+        self.cmd(
+            f"cat {self.dir_path}/httpx_result.csv | {awk_cmd} | "
+            f"tail -n +2 | sort -u > {self.dir_path}/all_subdomains_up.txt"
+        )
+        
+        # Extract IPs
+        awk_cmd_ip = """awk -F "," {'print $22'}"""
+        self.cmd(
+            f"cat {self.dir_path}/httpx_result.csv | {awk_cmd_ip} | "
+            f"sort -u | head -n -1 >> {self.dir_path}/httpx_ips.txt"
+        )
+        
+        # Combine all IPs
+        self.cmd(
+            f"cat {self.dir_path}/httpx_ips.txt {self.dir_path}/dnsx_ips.txt | "
+            f"sort -u > {self.dir_path}/all_ips.txt"
+        )
+        
+        self.all_subdomains_up = self.remove_unwanted_domains(
+            self.read("all_subdomains_up.txt")
+        )
+        
         self.event("httpx_result", "httpx_result.csv")
 
     def naabu(self) -> None:
+        """Run naabu port scanner on discovered subdomains."""
         input_file = self.read("all_subdomains.txt")
-
+        
         if not input_file:
             self.print("Naabu", "all_subdomains.txt is empty - skipping")
-        else:
-            self.cmd(f"""
-                naabu -l {self.dir_path}/all_subdomains.txt
-                 -c 100 {'' if self.verbose else '-silent'}
-                 -no-color 
-                 -top-ports 1000
-                 -exclude-cdn 
-                 -ep 80,443 
-                 -o {self.dir_path}/naabu_portscan.txt
-            """)
-
-            self.ask_to_add(self.read("naabu_portscan.txt"))
-            self.write_subdomains()
+            return
+        
+        self.print("Naabu", "Starting port scan...")
+        
+        naabu_cmd = (
+            f"naabu -l {self.dir_path}/all_subdomains.txt "
+            f"-c 100 {'' if self.verbose else '-silent'} "
+            f"-no-color -top-ports 1000 -exclude-cdn -ep 80,443 "
+            f"-o {self.dir_path}/naabu_portscan.txt"
+        )
+        self.cmd(naabu_cmd)
+        
+        self.ask_to_add(self.read("naabu_portscan.txt"))
+        self.write_subdomains()
 
     def subfinder(self) -> None:
+        """Run subfinder to discover subdomains from passive sources."""
         if self.htb or self.is_ip_address(self.site):
             return
-
+        
         self.print("Subfinder", "Process started")
-        self.cmd(f"subfinder -d {self.site} {'' if self.verbose else '-silent'} -t 100 -nW -all -o {self.dir_path}/subfinder_subdomains.txt")
+        
+        subfinder_cmd = (
+            f"subfinder -d {self.site} "
+            f"{'' if self.verbose else '-silent'} "
+            f"-t 100 -nW -all -o {self.dir_path}/subfinder_subdomains.txt"
+        )
+        self.cmd(subfinder_cmd)
+        
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
 
     def nuclei(self) -> None:
-        self.cmd(f"""nuclei -l {self.dir_path}/all_subdomains_up.txt
-                        {"-stats" if self.verbose else "-silent "} 
-                        -o {self.dir_path}/nuclei_result.txt
-                        -bulk-size 100
-                        -c 100
-                        -no-httpx
-                        -ept dns,ssl -etags detect,headers,waf,technologies,tech,wp-plugin,wordpress,whois
-                        -eid robots-txt,missing-sri
-                        {'-cloud-upload' if self.cloud_upload else ""} 
-                        {f"-interactsh-url {self.iserver}" if self.iserver else ""}
-                        {f"-itoken {self.itoken}" if self.itoken else ""}
-                    """)
+        """Run nuclei vulnerability scanner on active subdomains."""
+        self.print("Nuclei", "Starting vulnerability scan...")
+        
+        nuclei_cmd = (
+            f"nuclei -l {self.dir_path}/all_subdomains_up.txt "
+            f"{'-stats' if self.verbose else '-silent'} "
+            f"-o {self.dir_path}/nuclei_result.txt "
+            f"-bulk-size 100 -c 100 -no-httpx "
+            f"-ept dns,ssl -etags detect,headers,waf,technologies,tech,wp-plugin,wordpress,whois "
+            f"-eid robots-txt,missing-sri "
+            f"{'-cloud-upload' if self.cloud_upload else ''} "
+            f"{f'-interactsh-url {self.iserver}' if self.iserver else ''} "
+            f"{f'-itoken {self.itoken}' if self.itoken else ''}"
+        )
+        self.cmd(nuclei_cmd)
+        
         self.event("nuclei_result", "nuclei_result.txt")
         self.event("scan_finished")
 
     def check_ip(self) -> None:
-        if not self.htb:
-            ipaddress = get("http://ifconfig.me/ip").text
-            ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ipaddress}").text
-
-            ipaddress = '.'.join(ipaddress.split('.')[:2] + ['***', '***'])
-            self.print("IP Address", ipaddress)
+        """Check if current IP is suitable for scanning."""
+        if self.htb:
+            return
+        
+        try:
+            ip_address = get("http://ifconfig.me/ip").text
+            ip_check = get(f"https://blackbox.ipinfo.app/lookup/{ip_address}").text
+            
+            # Mask IP for privacy
+            masked_ip = '.'.join(ip_address.split('.')[:2] + ['***', '***'])
+            self.print("IP Address", masked_ip)
             self.event("scan_started")
-
+            
             if ip_check != "Y":
-                if not self.ask(f"{Colors.WARNING}(!) Your IP ({ipaddress}) seems to be a residential/mobile IP address, would you like to continue? {Colors.RESET}"):
+                warning_msg = (
+                    f"{Colors.WARNING}(!) Your IP ({masked_ip}) seems to be a "
+                    f"residential/mobile IP address, would you like to continue? {Colors.RESET}"
+                )
+                if not self.ask(warning_msg):
                     raise KeyboardInterrupt
+        except Exception as e:
+            self.print("Error", f"Failed to check IP: {str(e)}", Colors.FAIL)
 
     @staticmethod
-    def remove_unwanted_domains(domain_list) -> list:
+    def remove_unwanted_domains(domain_list: list) -> list:
+        """
+        Remove unwanted domains from list.
+        
+        Args:
+            domain_list: List of domains to filter
+            
+        Returns:
+            list: Filtered domain list
+        """
         unwanted_domains = (
             "cloudfront.net",
             "googleusercontent.com",
@@ -288,75 +500,127 @@ class HaxUnit:
             "azure-dns.net",
             "error"
         )
+        
+        filtered_domains = []
+        for domain in domain_list:
+            if (not domain.endswith(unwanted_domains) and 
+                not domain.startswith("*") and 
+                domain):
+                filtered_domains.append(domain)
+        
+        return filtered_domains
 
-        return [_ for _ in domain_list if (not _.endswith(unwanted_domains) and not _.startswith("*") and _)]
-
-    def ask_to_add(self, ask_domains: list, reask_same_tld=False) -> bool:
-        ask_domains = [domain for domain in list(set(ask_domains)) if domain not in self.all_subdomains]
-        ask_domains = self.remove_unwanted_domains(ask_domains)
-
-        if ask_domains:
-            print()
-            for d in ask_domains:
-                print(d)
-            print()
-
-            if self.ask(f"\nWould you like to add {len(ask_domains)} domains to the list? "):
-                self.all_subdomains.extend(ask_domains)
-                self.write_subdomains("w")
-                return True
-            elif reask_same_tld:
-                self.ask_to_add(list(set([_ for _ in ask_domains if _.endswith(self.site)])))
-                return True
+    def ask_to_add(self, domains: list, reask_same_tld: bool = False) -> bool:
+        """
+        Ask user to add discovered domains to scan list.
+        
+        Args:
+            domains: List of domains to add
+            reask_same_tld: Re-ask for same TLD domains only
+            
+        Returns:
+            bool: True if domains were added
+        """
+        # Filter out already known domains
+        new_domains = [d for d in set(domains) if d not in self.all_subdomains]
+        new_domains = self.remove_unwanted_domains(new_domains)
+        
+        if not new_domains:
+            return False
+        
+        # Display domains
+        print()
+        for domain in new_domains:
+            print(domain)
+        print()
+        
+        if self.ask(f"\nWould you like to add {len(new_domains)} domains to the list? "):
+            self.all_subdomains.extend(new_domains)
+            self.write_subdomains("w")
+            return True
+        elif reask_same_tld:
+            # Filter for same TLD and ask again
+            same_tld_domains = [d for d in new_domains if d.endswith(self.site)]
+            return self.ask_to_add(same_tld_domains)
+        
         return False
 
     def dnsx_subdomains(self) -> None:
+        """Use dnsx to bruteforce subdomains."""
         if self.is_ip_address(self.site):
             return
-
+        
         self.print("DNSx", "Started subdomain bruteforce")
-        self.cmd(f"dnsx -d {self.site} -w data/subdomains-{'1000' if self.quick else '10000'}.txt {'--stats' if not self.quick else ''} -wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8 -stats")
+        
+        wordlist = "data/subdomains-1000.txt" if self.quick else "data/subdomains-10000.txt"
+        dnsx_cmd = (
+            f"dnsx -d {self.site} -w {wordlist} "
+            f"{'--stats' if not self.quick else ''} "
+            f"-wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8 -stats"
+        )
+        self.cmd(dnsx_cmd)
+        
         self.ask_to_add(self.read("dnsx_result.txt"))
+        
+        # Recursive bruteforce if requested
+        if (self.read("dnsx_result.txt") and 
+            self.ask("\nWould you like to continue recursively bruteforce the found subdomains? ")):
+            self._recursive_dnsx_bruteforce()
 
-        if self.read("dnsx_result.txt") and self.ask("\nWould you like to continue recursively bruteforce the found subdomains? "):
-            self.print("DNSx", "Started multi-threaded recursive bruteforce")
-
-            all_found_subdomains = []
-
-            try:
-                for iteration in range(0, 100):
-                    print()
-                    self.print("DNSx", f"Iteration: {iteration}")
-
-                    def dnsx_brute(subdomain):
-                        self.cmd(f"dnsx -silent -d {subdomain} -wd {subdomain} -w data/subdomains-1000.txt -wd {self.site} -o {self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt -r 8.8.8.8")
-
-                    file_to_read = "dnsx_result.txt" if not iteration else f"dnsx_recursive_iter_{iteration - 1}_result.txt"
-                    self.print("DNSx", f"Reading file: {file_to_read}")
-
-                    dnsx_result = self.read(file_to_read)
-                    self.print("DNSx", f"List of subdomains: {dnsx_result}")
-
-                    if dnsx_result:
-                        all_found_subdomains.extend(dnsx_result)
-                        with ThreadPoolExecutor(max_workers=5) as pool:
-                            pool.map(dnsx_brute, dnsx_result)
-                    else:
-                        break
-            except KeyboardInterrupt:
-                self.print("DNSx", "Bruteforce stopped")
-
-            self.ask_to_add(all_found_subdomains)
+    def _recursive_dnsx_bruteforce(self) -> None:
+        """Perform recursive subdomain bruteforce."""
+        self.print("DNSx", "Started multi-threaded recursive bruteforce")
+        all_found_subdomains = []
+        
+        try:
+            for iteration in range(100):
+                print()
+                self.print("DNSx", f"Iteration: {iteration}")
+                
+                # Determine which file to read
+                if iteration == 0:
+                    file_to_read = "dnsx_result.txt"
+                else:
+                    file_to_read = f"dnsx_recursive_iter_{iteration - 1}_result.txt"
+                
+                self.print("DNSx", f"Reading file: {file_to_read}")
+                dnsx_result = self.read(file_to_read)
+                
+                if not dnsx_result:
+                    break
+                
+                self.print("DNSx", f"List of subdomains: {dnsx_result}")
+                all_found_subdomains.extend(dnsx_result)
+                
+                # Run bruteforce on each subdomain in parallel
+                def dnsx_brute(subdomain):
+                    output_file = f"{self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt"
+                    self.cmd(
+                        f"dnsx -silent -d {subdomain} -wd {subdomain} "
+                        f"-w data/subdomains-1000.txt -wd {self.site} "
+                        f"-o {output_file} -r 8.8.8.8"
+                    )
+                
+                with ThreadPoolExecutor(max_workers=5) as pool:
+                    pool.map(dnsx_brute, dnsx_result)
+                    
+        except KeyboardInterrupt:
+            self.print("DNSx", "Bruteforce stopped")
+        
+        self.ask_to_add(all_found_subdomains)
 
     def dnsx_ips(self) -> None:
+        """Get A records for all subdomains."""
         if self.is_ip_address(self.site):
             return
-
+        
         self.print("DNSx", "Get A records")
-        self.cmd(f"dnsx -l {self.dir_path}/all_subdomains.txt" 
-                 f" -a -resp-only -silent | sort -u > {self.dir_path}/dnsx_ips.txt")
-
-        # self.ask_to_add(self.read("dnsx_ips.txt"))
+        
+        dnsx_cmd = (
+            f"dnsx -l {self.dir_path}/all_subdomains.txt "
+            f"-a -resp-only -silent | sort -u > {self.dir_path}/dnsx_ips.txt"
+        )
+        self.cmd(dnsx_cmd)
 
     def acunetix(self) -> None:
 
@@ -446,14 +710,33 @@ class HaxUnit:
                 self.print("Acunetix", f"Scan(s) started!")
 
     def katana(self) -> None:
-        self.cmd(f"katana -list {self.dir_path}/all_subdomains.txt {'-d 1' if self.quick else ''} | unfurl format %d:%P | sed 's/:$//g' | sort -u > {self.dir_path}/katana_domains.txt")
+        """Run katana web crawler to discover additional endpoints."""
+        self.print("Katana", "Starting web crawling...")
+        
+        depth = "-d 1" if self.quick else ""
+        katana_cmd = (
+            f"katana -list {self.dir_path}/all_subdomains.txt {depth} | "
+            f"unfurl format %d:%P | sed 's/:$//g' | "
+            f"sort -u > {self.dir_path}/katana_domains.txt"
+        )
+        self.cmd(katana_cmd)
+        
         self.ask_to_add(self.read("katana_domains.txt"))
 
-    def alterx(self):
+    def alterx(self) -> None:
+        """Generate subdomain permutations using alterx."""
         if self.is_ip_address(self.site):
             return
-
-        self.cmd(f"alterx -l {self.dir_path}/all_subdomains.txt {'' if self.quick else '-enrich'} | sort -u | dnsx -silent > {self.dir_path}/alterx_result.txt")
+        
+        self.print("Alterx", "Generating subdomain permutations...")
+        
+        enrich_flag = "" if self.quick else "-enrich"
+        alterx_cmd = (
+            f"alterx -l {self.dir_path}/all_subdomains.txt {enrich_flag} | "
+            f"sort -u | dnsx -silent > {self.dir_path}/alterx_result.txt"
+        )
+        self.cmd(alterx_cmd)
+        
         self.ask_to_add(self.read("alterx_result.txt"))
 
     def notify(self):
@@ -520,27 +803,51 @@ class HaxUnit:
                 for wp_result_filename in self.wp_result_filenames:
                     self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
 
-    def event(self, message=None, filename=None):
+    def event(self, message: str = None, filename: str = None) -> None:
+        """
+        Send telemetry event to HaxUnit server.
+        
+        Args:
+            message: Event message
+            filename: Associated filename
+        """
         try:
             url = "https://app.haxunit.com/handle_event"
-
-            json_data = {
+            
+            data = {
                 "domain": self.site,
                 "message": message,
                 "hwid": self.anonymous_hwid,
                 "api_key": self.haxunit_api_key
             }
-
+            
             if filename:
-                json_data["filename"] = filename
-                with open(f'{self.dir_path}/{filename}', 'rb') as file:
-                    post(url, data=json_data, files={'file': file})
+                data["filename"] = filename
+                file_path = f'{self.dir_path}/{filename}'
+                with open(file_path, 'rb') as file:
+                    post(url, data=data, files={'file': file})
             else:
-                post(url, data=json_data)
-        except: pass
+                post(url, data=data)
+        except Exception:
+            pass
 
     def droopescan(self):
         pass
+
+    def subwiz(self) -> None:
+        """Use AI to predict additional subdomains."""
+        if self.is_ip_address(self.site):
+            return
+        
+        self.print("Subwiz", "Predicting subdomains with AI...")
+        
+        subwiz_cmd = (
+            f"subwiz -i {self.dir_path}/all_subdomains.txt "
+            f"-o {self.dir_path}/subwiz_results.txt"
+        )
+        self.cmd(subwiz_cmd)
+        
+        self.ask_to_add(self.read("subwiz_results.txt"))
 
     def add_hosts(self, hosts: list) -> None:
         for host in hosts:
@@ -722,60 +1029,39 @@ class HaxUnit:
                 console.print(Markdown(gpt_result['text']))
 
     def install_wpscan(self):
-        if not self.cmd(f"command -v docker", True):
-            self.print("Installer WPSCAN", "Docker is not installed - please install docker first to install wpscan", Colors.FAIL)
+        self.print("Installer", "Checking for wpscan Docker image...")
+        if not self.cmd("command -v docker", silent=True):
+            self.print("Installer", "Docker is not installed. WPScan installation requires Docker.", Colors.FAIL)
         else:
-            result = self.cmd(f"docker images -q wpscanteam/wpscan")
+            result = self.cmd("docker images -q wpscanteam/wpscan", silent=True)
             if result:
-                self.print("INFO", f"The image 'wpscanteam/wpscan' is already pulled.")
+                self.print("Installer", "Docker image 'wpscanteam/wpscan' is already installed.", Colors.SUCCESS)
             else:
-                self.print("INFO", f"The image 'wpscanteam/wpscan' is not found. Pulling the image now...")
+                self.print("Installer", "Pulling Docker image 'wpscanteam/wpscan'...")
                 self.cmd("docker pull wpscanteam/wpscan")
 
-    def install_ripgen(self):
-        for rg_cmd in (
-            "sudo apt remove rustc -y",
-            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh -s -- -y",
-            "export PATH='/root/.cargo/bin:${PATH}'",
-            "sudo apt install cargo -y",
-            "cargo install ripgen",
-            'echo "export PATH=$PATH:$HOME/.cargo/bin" >> ~/.bashrc',
-        ):
-            self.cmd(rg_cmd)
-
     def install_docker(self):
-        result = self.cmd(f"command -v docker")
-        if not result:
-            self.cmd("sudo apt-get update")
+        self.print("Installer", "Checking for Docker...")
+        if not self.cmd("command -v docker", silent=True):
+            self.print("Installer", "Docker not found. Installing...")
+            self.cmd("sudo apt-get update -y")
             self.cmd("sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
             self.cmd("curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -")
-            self.cmd('sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"')
-            self.cmd("sudo apt-get update")
+            self.cmd('sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"')
+            self.cmd("sudo apt-get update -y")
             self.cmd("sudo apt-get install -y docker-ce")
+            self.print("Installer", "Docker installed successfully.", Colors.SUCCESS)
+        else:
+            self.print("Installer", "Docker is already installed.", Colors.SUCCESS)
 
     def install_go(self):
-        result = self.cmd(f"command -v go")
-        if not result:
-            self.print("INFO", "Go is not installed. Please install Go first manually.")
+        self.print("Installer", "Checking for Go...")
+        if not self.cmd("command -v go", silent=True):
+            self.print("Installer", "Go is not installed. Please install it first.", Colors.FAIL)
+            self.print("Installer", "Visit https://golang.org/doc/install for instructions.", Colors.FAIL)
             exit()
-
-            # if self.ask("Go is not installed. Would you like to install it? "):
-            #     self.cmd(f"wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz -O /tmp/go.tar.gz")
-            #
-            #     self.cmd("sudo tar -C /usr/local -xzf /tmp/go.tar.gz")
-            #
-            #     self.cmd("rm /tmp/go.tar.gz")
-            #
-            #     go_path = "/usr/local/go/bin"
-            #     if go_path not in os.environ["PATH"]:
-            #         self.cmd(f"echo 'export PATH=$PATH:{go_path}' >> ~/.profile")
-            #         self.cmd("source ~/.profile")
-            #
-            #     result = self.cmd(f"command -v go")
-            #     if result:
-            #         self.print("SUCCESS", "Go installed successfully.")
-            #     else:
-            #         self.print("ERROR", "Go installation failed.")
+        else:
+            self.print("Installer", "Go is already installed.", Colors.SUCCESS)
 
     def add_go_to_path(self):
         user_shell = self.cmd("echo $SHELL")
@@ -792,96 +1078,256 @@ class HaxUnit:
 
         self.cmd(f"export PATH=$PATH:$HOME/go/bin")
 
-        self.print("INFO", f"$HOME/go/bin added to {shell_config_file} and sourced successfully.")
-
     def install_all_tools(self):
-
         self.install_docker()
         self.install_wpscan()
 
         self.install_go()
         self.add_go_to_path()
 
-        for cmd_tool in (
-                "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest",
-                "go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
-                "sudo apt install -y libpcap-dev",
-                "go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
-                "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
-                "go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
-                "echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc",
-                "nuclei -update-templates",
-                "go install github.com/lc/gau/v2/cmd/gau@latest",
-                "go install github.com/tomnomnom/unfurl@latest",
-                "go install -v github.com/projectdiscovery/notify/cmd/notify@latest",
-                "go install github.com/projectdiscovery/katana/cmd/katana@latest",
-                "go install -v github.com/projectdiscovery/alterx/cmd/alterx@latest",
-                "go install -v github.com/ffuf/ffuf/v2@latest"
-        ):
-            self.cmd(cmd_tool)
+        self.print("Installer", "Checking for libpcap-dev dependency...")
+        # Redirect stderr to dev/null to avoid printing errors if package is not found
+        if "install ok installed" in self.cmd("dpkg -s libpcap-dev 2>/dev/null", silent=True):
+            self.print("Installer", "libpcap-dev is already installed.", Colors.SUCCESS)
+        else:
+            self.print("Installer", "Package 'libpcap-dev' not found. Installing for naabu dependency...")
+            self.cmd("sudo apt-get update -y")
+            self.cmd("sudo apt-get install -y libpcap-dev")
+
+        # Install pdtm first, as it's used to manage other tools
+        self.print("Installer", "Checking for pdtm...")
+        if not self.cmd("command -v pdtm", silent=True):
+            self.print("Installer", "pdtm not found. Installing...")
+            self.cmd("go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest")
+        else:
+            self.print("Installer", "pdtm is already installed.", Colors.SUCCESS)
+
+        # Install all projectdiscovery tools using pdtm
+        self.print("Installer", "Installing all ProjectDiscovery tools via pdtm...")
+        self.cmd("pdtm -ia -bp $HOME/go/bin")
+
+        # Update nuclei templates
+        self.print("Installer", "Updating nuclei templates...")
+        self.cmd("nuclei -update-templates")
+
+        # A dictionary of other essential command-line tools to check and install
+        other_tools = {
+            "gau": "go install github.com/lc/gau/v2/cmd/gau@latest",
+            "unfurl": "go install github.com/tomnomnom/unfurl@latest",
+            "ffuf": "go install -v github.com/ffuf/ffuf/v2@latest"
+        }
+
+        for tool, install_cmd in other_tools.items():
+            self.print("Installer", f"Checking for {tool}...")
+            if not self.cmd(f"command -v {tool}", silent=True):
+                self.print("Installer", f"{tool} not found. Installing...")
+                self.cmd(install_cmd)
+            else:
+                self.print("Installer", f"{tool} is already installed.", Colors.SUCCESS)
 
 
-def script_init(args) -> str:
-    """Create scans folder, workspace and the current scan folder"""
+def create_argument_parser() -> argparse.ArgumentParser:
+    """
+    Create and configure argument parser.
+    
+    Returns:
+        argparse.ArgumentParser: Configured argument parser
+    """
+    parser = argparse.ArgumentParser(description='HaxUnit - Web Domain Reconnaissance Tool')
+    
+    # Required arguments
+    parser.add_argument(
+        '-d', '--domain',
+        type=str,
+        help='the website to recon: example.com'
+    )
+    
+    # Scan configuration
+    parser.add_argument(
+        '-m', '--mode',
+        type=str,
+        choices=['quick', 'extensive'],
+        default='quick',
+        help='set scan mode'
+    )
+    
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        default=True,
+        help='print more information'
+    )
+    
+    # Tool configuration
+    parser.add_argument(
+        '-b', '--bin',
+        type=str,
+        default='python3',
+        help='set which python bin to use'
+    )
+    
+    # Interactsh configuration
+    parser.add_argument(
+        '-is', '--iserver',
+        type=str,
+        default='',
+        help='interactsh server URL for self-hosted instance'
+    )
+    
+    parser.add_argument(
+        '-it', '--itoken',
+        type=str,
+        default='',
+        help='authentication token for self-hosted interactsh server'
+    )
+    
+    # Integration options
+    parser.add_argument(
+        '-acu', '--use-acunetix',
+        action='store_true',
+        default='',
+        help='Enable Acunetix integration'
+    )
+    
+    parser.add_argument(
+        '--wpscan-api-token',
+        type=str,
+        default='',
+        help='The WPScan API Token to display vulnerability data'
+    )
+    
+    # Behavior options
+    parser.add_argument(
+        '-y', '--yes',
+        action='store_true',
+        help='yes to all prompts'
+    )
+    
+    parser.add_argument(
+        '-u', '--update',
+        action='store_true',
+        help='update all tools'
+    )
+    
+    parser.add_argument(
+        '-i', '--install',
+        action='store_true',
+        help='install all tools'
+    )
+    
+    parser.add_argument(
+        '--skip-installers',
+        action='store_true',
+        help='Skip tool installation checks'
+    )
+    
+    # Output options
+    parser.add_argument(
+        '--use-notify',
+        action='store_true',
+        help='Run notify on completion'
+    )
+    
+    parser.add_argument(
+        '--cloud-upload',
+        action='store_true',
+        help='Upload results to ProjectDiscovery cloud'
+    )
+    
+    # Special modes
+    parser.add_argument(
+        '--htb',
+        action='store_true',
+        help='HackTheBox mode'
+    )
+    
+    parser.add_argument(
+        '--fuzz',
+        action='store_true',
+        help='Enable ffuf fuzzing'
+    )
+    
+    parser.add_argument(
+        '--use-gpt',
+        action='store_true',
+        help='Enable GPT suggestions'
+    )
+    
+    return parser
 
-    if not args.domain:
+
+def initialize_scan_directory(domain: str) -> str:
+    """
+    Create directory structure for scan results.
+    
+    Args:
+        domain: Target domain
+        
+    Returns:
+        str: Path to scan directory
+    """
+    if not domain:
         return ""
-
-    # Create 'scans' folder if it doesn't exist
+    
+    # Create main scans folder
     scans_folder = "scans"
     if not exists(scans_folder):
         mkdir(scans_folder)
-
-    # Create domain-specific folder if it doesn't exist
-    domain_folder = os.path.join(scans_folder, args.domain)
+    
+    # Create domain-specific folder
+    domain_folder = os.path.join(scans_folder, domain)
     if not exists(domain_folder):
         mkdir(domain_folder)
-
+    
     # Create timestamped scan folder
-    scan_folder = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    dir_path = os.path.join(domain_folder, scan_folder)
-    mkdir(dir_path)
-
-    # Create 'ffuf' folder inside the timestamped scan folder
-    ffuf_folder = os.path.join(dir_path, "ffuf")
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    scan_path = os.path.join(domain_folder, timestamp)
+    mkdir(scan_path)
+    
+    # Create subdirectories
+    ffuf_folder = os.path.join(scan_path, "ffuf")
     mkdir(ffuf_folder)
+    
+    return scan_path
 
-    return dir_path
+
+def parse_domain(domain_input: str) -> str:
+    """
+    Parse and clean domain input.
+    
+    Args:
+        domain_input: Raw domain input
+        
+    Returns:
+        str: Cleaned domain
+    """
+    if not domain_input:
+        return ""
+    
+    parsed = urlparse(domain_input)
+    return parsed.netloc if parsed.netloc else parsed.path
 
 
 def main():
-    parser = argparse.ArgumentParser(description='HaxUnit')
-    parser.add_argument('-d', '--domain', type=str, help='the website to recon: example.com')
-    parser.add_argument('-m', '--mode', type=str, choices=['quick', 'extensive'], help='set scan mode', default='quick')
-    parser.add_argument('-v', '--verbose', action='store_true', help='print more information', default=True)
-    parser.add_argument('-b', '--bin', type=str, help='set which python bin to use', default='python3')
-    parser.add_argument('-is', '--iserver', type=str, help='interactsh server URL for self-hosted instance', default='')
-    parser.add_argument('-it', '--itoken', type=str, help='authentication token for self-hosted interactsh server', default='')
-    parser.add_argument('-acu', '--use-acunetix', action='store_true', help='Acunetix API key', default='')
-    parser.add_argument('-y', '--yes', action='store_true', help='yes to all')
-    parser.add_argument('-u', '--update', action='store_true', help='update all tools')
-    parser.add_argument('-i', '--install', action='store_true', help='install all tools')
-    parser.add_argument('--wpscan-api-token', type=str, help='The WPScan API Token to display vulnerability data', default='')
-    parser.add_argument('--use-notify', action='store_true', help='Run notify on completion')
-    parser.add_argument('--cloud-upload', action='store_true', help='Upload results to ProjectDiscovery cloud')
-    parser.add_argument('--htb', action='store_true', help='HackTheBox mode')
-    parser.add_argument('--fuzz', action='store_true', help='Enable ffuf')
-    parser.add_argument('--use-gpt', action='store_true', help='Enable GPT suggestions')
-
+    """Main entry point for HaxUnit."""
+    # Parse arguments
+    parser = create_argument_parser()
     args = parser.parse_args()
-
+    
+    # Clean domain input
     if args.domain:
-        parse_result = urlparse(args.domain)
-        args.domain = parse_result.netloc if parse_result.netloc else parse_result.path
-
-    dir_path = script_init(args)
-
+        args.domain = parse_domain(args.domain)
+    
+    # Initialize scan directory
+    scan_directory = initialize_scan_directory(args.domain)
+    
+    # Create HaxUnit instance
     hax = HaxUnit(
         site=args.domain,
         mode=args.mode,
         verbose=args.verbose,
         python_bin=args.bin,
-        dir_path=dir_path,
+        dir_path=scan_directory,
         iserver=args.iserver,
         itoken=args.itoken,
         use_acunetix=args.use_acunetix,
@@ -893,35 +1339,58 @@ def main():
         cloud_upload=args.cloud_upload,
         htb=args.htb,
         fuzz=args.fuzz,
-        use_gpt=args.use_gpt
+        use_gpt=args.use_gpt,
+        skip_installers=args.skip_installers
     )
-
+    
     try:
+        # Run reconnaissance workflow
         hax.motd()
         hax.htb_add_hosts()
         hax.ffuf_vhosts()
         hax.check_ip()
+        
+        # Subdomain discovery
         hax.dnsx_subdomains()
         hax.subfinder()
         hax.katana()
         hax.alterx()
+        hax.subwiz()
+        
+        # Network reconnaissance
         hax.dnsx_ips()
         hax.naabu()
         hax.httpx()
+        
+        
+        # Vulnerability scanning
         hax.ffuf()
         hax.wpscan()
         hax.acunetix()
         hax.nuclei()
+        
+        # Post-processing
         hax.notify()
         hax.gpt()
         hax.report_gen()
-
-        print(f"\ncd {dir_path}\n")
+        
+        # Display completion message
+        print(f"\ncd {scan_directory}\n")
+        
     except KeyboardInterrupt:
-        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{Colors.OK}KeyboardInterrupt{Colors.RESET}] {Colors.WARNING}Aborted{Colors.RESET}")
-    except:
+        print(
+            f"[{Colors.BOLD}HaxUnit{Colors.RESET}] "
+            f"[{Colors.OK}KeyboardInterrupt{Colors.RESET}] "
+            f"{Colors.WARNING}Aborted{Colors.RESET}"
+        )
+    except Exception:
         print_exc()
-        print(f"[{Colors.BOLD}HaxUnit{Colors.RESET}] [{Colors.FAIL}Error{Colors.RESET}] {Colors.WARNING}An error occurred - report it at the discord https://haxunit.com/discord.php{Colors.RESET}")
+        print(
+            f"[{Colors.BOLD}HaxUnit{Colors.RESET}] "
+            f"[{Colors.FAIL}Error{Colors.RESET}] "
+            f"{Colors.WARNING}An error occurred - report it at "
+            f"https://haxunit.com/discord.php{Colors.RESET}"
+        )
 
 
 if __name__ == '__main__':
