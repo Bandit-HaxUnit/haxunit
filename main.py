@@ -1147,6 +1147,9 @@ class HaxUnit:
 
     def gowitness(self) -> None:
         """Run gowitness to capture screenshots of active subdomains for visual reconnaissance."""
+        if not self.screenshots:
+            return
+            
         if not self.all_subdomains_up:
             self.print("Gowitness", "No active subdomains found - skipping visual reconnaissance")
             return
@@ -1446,8 +1449,7 @@ def main():
         hax.httpx()
         
         # Visual reconnaissance
-        if hax.screenshots:
-            hax.gowitness()
+        hax.gowitness()
         
         # Vulnerability scanning
         hax.ffuf()
