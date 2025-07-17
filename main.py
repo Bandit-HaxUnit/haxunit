@@ -579,7 +579,7 @@ class HaxUnit:
         dnsx_cmd = (
             f"dnsx -d {self.site} -w {wordlist} "
             f"{'--stats' if not self.quick else ''} "
-            f"-wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 8.8.8.8 -stats"
+            f"-wd {self.site} -o {self.dir_path}/dnsx_result.txt -r 127.0.0.1 -stats"
         )
         self.cmd(dnsx_cmd)
         
@@ -621,7 +621,7 @@ class HaxUnit:
                     self.cmd(
                         f"dnsx -silent -d {subdomain} -wd {subdomain} "
                         f"-w data/subdomains-1000.txt -wd {self.site} "
-                        f"-o {output_file} -r 8.8.8.8"
+                        f"-o {output_file} -r 127.0.0.1"
                     )
                 
                 with ThreadPoolExecutor(max_workers=5) as pool:
