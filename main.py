@@ -21,15 +21,11 @@ from os.path import exists
 from subprocess import PIPE, Popen
 from traceback import print_exc
 from urllib.parse import urlparse
-from json import dumps
 
 # Third-party imports
 import urllib3
 from dotenv import load_dotenv
-from freeGPTFix import Client
 from requests import get, post
-from rich.console import Console
-from rich.markdown import Markdown
 
 # Disable SSL warnings
 urllib3.disable_warnings()
@@ -251,15 +247,6 @@ class HaxUnit:
         
         info_string = '|'.join(f'{k}={v}' for k, v in system_info.items())
         return h.sha256(info_string.encode()).hexdigest()
-
-    def motd(self):
-        """Display random noise for operators"""
-        try:
-            response = get("https://www.affirmations.dev/") # haxunit endpoint down - threw html in my face
-            affirmation = json.loads(response.text)["affirmation"] 
-            self.print("MOTD", affirmation)
-        except Exception:
-            pass
 
     def cmd(self, cmd: str, silent: bool = False) -> str:
         """
@@ -685,7 +672,7 @@ class HaxUnit:
                     'https://host.docker.internal:3443/api/v1/target_groups',
                     headers=headers,
                     cookies=cookies,
-                    data=dumps({"name": self.site, "description": ""}),
+                    data=json.dumps({"name": self.site, "description": ""}),
                     verify=False
                 ).json()["group_id"]
 
@@ -712,7 +699,7 @@ class HaxUnit:
             if data:
 
                 response = post('https://host.docker.internal:3443/api/v1/targets/add', headers=headers, cookies=cookies,
-                                data=dumps(data), verify=False).json()
+                                data=json.dumps(data), verify=False).json()
 
                 for target in response["targets"]:
                     data = {
@@ -727,7 +714,7 @@ class HaxUnit:
                         "target_id": target["target_id"]
                     }
 
-                    post('https://host.docker.internal:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data),
+                    post('https://host.docker.internal:3443/api/v1/scans', headers=headers, cookies=cookies, data=json.dumps(data),
                          verify=False)
 
                 self.print("Acunetix", f"Scan(s) started!")
@@ -846,9 +833,6 @@ class HaxUnit:
             post(url, data=data)
         except Exception:
             pass
-
-    def droopescan(self):
-        pass
 
     def subwiz(self) -> None:
         """Use AI to predict additional subdomains."""
@@ -1024,25 +1008,6 @@ class HaxUnit:
 
                 with ThreadPoolExecutor(max_workers=5) as pool:
                     pool.map(single_wpscan, wordpress_domains)
-
-    def gpt(self):
-        if self.use_gpt:
-            nuclei_result = self.read("nuclei_result.txt")
-
-            nuclei_text = "\n".join([_ for _ in nuclei_result if "[info]" not in _])
-            print(nuclei_text)
-
-            if nuclei_text:
-
-                gpt_result = Client.create_completion("gemini", f"""
-                    I am pentesting my website, these are the result from the tool nuclei.
-                    How can a attacker exploit these?
-                    
-                    {nuclei_text}
-                """)
-
-                console = Console()
-                console.print(Markdown(gpt_result['text']))
 
     def install_wpscan(self):
         self.print("Installer", "Checking for wpscan Docker image...")
@@ -1361,7 +1326,6 @@ def main():
     
     try:
         # Run reconnaissance workflow
-        hax.motd()
         hax.htb_add_hosts()
         hax.ffuf_vhosts()
         hax.check_ip()
@@ -1388,7 +1352,6 @@ def main():
         
         # Post-processing
         hax.notify()
-        hax.gpt()
         hax.report_gen()
         
         # Display completion message
