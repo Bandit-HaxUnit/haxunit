@@ -24,7 +24,7 @@ HaxUnit is focused on simplicity and aims to be the best and most complete solut
 
 ## ✨ Features
 
-- **Subdomain Enumeration**: Uses tools like Subfinder, DNSx, and custom bruteforce methods.
+- **Subdomain Enumeration**: Uses tools like Subfinder, Chaos-client, DNSx, and custom bruteforce methods.
 - **AI-Powered Subdomain Prediction**: Integrates Subwiz for ML-based subdomain discovery.
 - **Port Scanning**: Utilizes Naabu for fast port scanning across discovered subdomains.
 - **Vulnerability Scanning**: Integrates Nuclei for detecting security issues across web applications.
@@ -51,6 +51,7 @@ ACUNETIX_THRESHOLD=30
 ACUNETIX_API_KEY=
 NUCLEI_API_KEY=
 WPSCAN_API_KEY=
+PDCP_API_KEY=
 ```
 
 3. **Set executable permissions for scripts:**
@@ -248,6 +249,7 @@ ACUNETIX_THRESHOLD=30
 ACUNETIX_API_KEY=
 NUCLEI_API_KEY=
 WPSCAN_API_KEY=
+PDCP_API_KEY=
 ```
 
 3. **Configure Notifications**:</br>
@@ -336,6 +338,7 @@ Password: Awvs@awvs.lan
 |-----------------|-----------------------|-------------------------------------------------------------------------------------------------------|
 | dnsx_subdomains | Subdomain discovery   | Use dnsx to find subdomains and brute force subdomains                                                |
 | subfinder       | Subdomain discovery   | Use subfinder to find subdomains                                                                      |
+| chaos           | Subdomain discovery   | Query ProjectDiscovery's Chaos database for passive subdomain enumeration                              |
 | subwiz          | Subdomain discovery   | AI-powered subdomain prediction using machine learning                                                 |
 | katana          | Crawling              | Gather all URL's on the list of subdomains and parse the domain using unfurl                          |
 | alterx          | Subdomain permutation | Generate and test subdomain permutations                                                              |
