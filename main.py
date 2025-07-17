@@ -1185,23 +1185,10 @@ class HaxUnit:
         
         self.cmd(gowitness_cmd)
         
-        # Generate gowitness report only if database exists
-        if self.cmd(f"test -f {db_path}", silent=True) == "":
-            report_cmd = (
-                f"gowitness report export "
-                f"-f {db_path} "
-                f"--format csv "
-                f"> {self.dir_path}/gowitness_report.csv"
-            )
-            self.cmd(report_cmd)
-        else:
-            self.print("Gowitness", "Database not found, skipping report generation", Colors.WARNING)
-        
         # Count screenshots taken
         screenshot_count = self.cmd(f"ls {screenshots_dir}/*.png 2>/dev/null | wc -l", silent=True)
         if screenshot_count and screenshot_count.strip() != "0":
             self.print("Gowitness", f"Captured {screenshot_count.strip()} screenshots in {screenshots_dir}/")
-            self.print("Gowitness", f"Report saved to {self.dir_path}/gowitness_report.csv")
         else:
             self.print("Gowitness", "No screenshots captured - check if subdomains are accessible", Colors.WARNING)
         
