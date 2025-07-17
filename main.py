@@ -591,25 +591,15 @@ class HaxUnit:
             self._recursive_dnsx_bruteforce()
 
     def _recursive_dnsx_bruteforce(self) -> None:
-        """
-        Perform recursive subdomain bruteforce with optimizations.
-        
-        Improvements:
-        - Fixed race conditions in file I/O
-        - Better memory management and deduplication
-        - Configurable limits and thread counts
-        - Progress tracking and ETA
-        - Proper error handling and cleanup
-        - Early termination conditions
-        """
+        """Perform recursive subdomain bruteforce."""
         import tempfile
         import threading
         from collections import defaultdict
         
-        self.print("DNSx", "Started optimized multi-threaded recursive bruteforce")
+        self.print("DNSx", "Started multi-threaded recursive bruteforce")
         
         # Configuration
-        max_iterations = 20  # Reduced from 100 for better performance
+        max_iterations = 20
         max_workers = min(10, (os.cpu_count() or 1) * 2)  # Adaptive thread count
         min_new_domains = 5  # Stop if we find fewer than this many new domains
         wordlist = "data/subdomains-1000.txt"
@@ -645,23 +635,23 @@ class HaxUnit:
                 new_domains_found = set()
                 
                 def dnsx_brute_optimized(subdomain_target):
-                    """Optimized bruteforce function with better error handling."""
+                    """Bruteforce function with error handling."""
                     try:
                         # Create unique output file for each thread
                         thread_id = threading.get_ident()
                         output_file = os.path.join(temp_dir, f"result_{thread_id}_{subdomain_target.replace('.', '_')}.txt")
                         
-                        # Build command with better error handling
+                        # Build command
                         cmd = (
                             f"dnsx -silent -d {subdomain_target} "
                             f"-w {wordlist} "
                             f"-wd {self.site} "
                             f"-o {output_file} "
                             f"-r 8.8.8.8,1.1.1.1 "  # Multiple resolvers for reliability
-                            f"-retry 2 -timeout 5"  # Add retry and timeout
+                            f"-retry 2 -timeout 5"
                         )
                         
-                        # Execute with timeout and error handling
+                        # Execute command
                         result = self.cmd(cmd, silent=True)
                         
                         # Read results if file exists
