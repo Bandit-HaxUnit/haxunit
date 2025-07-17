@@ -74,7 +74,8 @@ class HaxUnit:
         htb: bool,
         fuzz: bool,
         use_gpt: bool,
-        skip_installers: bool
+        skip_installers: bool,
+        screenshots: bool
     ):
         """
         Initialize HaxUnit with configuration parameters.
@@ -98,6 +99,7 @@ class HaxUnit:
             fuzz: Enable fuzzing
             use_gpt: Enable GPT suggestions
             skip_installers: Skip tool installation checks
+            screenshots: Enable visual reconnaissance with screenshots
         """
         # Initialize instance variables
         self.site = site
@@ -135,6 +137,7 @@ class HaxUnit:
         self.use_gpt = use_gpt
         self.use_notify = use_notify
         self.cloud_upload = cloud_upload
+        self.screenshots = screenshots
         
         # HTB specific configuration
         self.htb = htb
@@ -333,7 +336,7 @@ class HaxUnit:
         """
         required_tools = [
             "dnsx", "subfinder", "katana", "unfurl", "alterx",
-            "dnsx", "naabu", "httpx", "nuclei", "notify", "ffuf"
+            "dnsx", "naabu", "httpx", "nuclei", "notify", "ffuf", "gowitness"
         ]
         
         for tool in required_tools:
@@ -1095,7 +1098,8 @@ class HaxUnit:
         other_tools = {
             "gau": "go install github.com/lc/gau/v2/cmd/gau@latest",
             "unfurl": "go install github.com/tomnomnom/unfurl@latest",
-            "ffuf": "go install -v github.com/ffuf/ffuf/v2@latest"
+            "ffuf": "go install -v github.com/ffuf/ffuf/v2@latest",
+            "gowitness": "go install github.com/sensepost/gowitness@latest"
         }
 
         for tool, install_cmd in other_tools.items():
@@ -1105,6 +1109,68 @@ class HaxUnit:
                 self.cmd(install_cmd)
             else:
                 self.print("Installer", f"{tool} is already installed.", Colors.SUCCESS)
+
+    def gowitness(self) -> None:
+        """Run gowitness to capture screenshots of active subdomains for visual reconnaissance."""
+        if not self.screenshots:
+            return
+            
+        if not self.all_subdomains_up:
+            self.print("Gowitness", "No active subdomains found - skipping visual reconnaissance")
+            return
+        
+        self.print("Gowitness", "Starting visual reconnaissance and screenshot capture...")
+        
+        # Create screenshots directory
+        screenshots_dir = f"{self.dir_path}/screenshots"
+        self.cmd(f"mkdir -p {screenshots_dir}")
+        
+        # Check if gowitness is installed
+        if not self.cmd("command -v gowitness", silent=True):
+            self.print("Gowitness", "gowitness not found. Install with: go install github.com/sensepost/gowitness@latest", Colors.WARNING)
+            return
+        
+        # Run gowitness on active subdomains
+        threads = "20" if not self.quick else "10"
+        timeout = "15" if not self.quick else "10"
+        db_path = f"{self.dir_path}/gowitness.sqlite3"
+        
+        gowitness_cmd = (
+            f"gowitness file "
+            f"-f {self.dir_path}/all_subdomains_up.txt "
+            f"-P {screenshots_dir}/ "
+            f"-D {db_path} "
+            f"-t {timeout} "
+            f"--threads {threads} "
+            f"--log-level {'info' if self.verbose else 'fatal'} "
+            f"--disable-logging-colors "
+            f"--screenshot-format png "
+            f"--user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'"
+        )
+        
+        self.cmd(gowitness_cmd)
+        
+        # Generate gowitness report only if database exists
+        if self.cmd(f"test -f {db_path}", silent=True) == "":
+            report_cmd = (
+                f"gowitness report export "
+                f"-f {db_path} "
+                f"--format csv "
+                f"> {self.dir_path}/gowitness_report.csv"
+            )
+            self.cmd(report_cmd)
+        else:
+            self.print("Gowitness", "Database not found, skipping report generation", Colors.WARNING)
+        
+        # Count screenshots taken
+        screenshot_count = self.cmd(f"ls {screenshots_dir}/*.png 2>/dev/null | wc -l", silent=True)
+        if screenshot_count and screenshot_count.strip() != "0":
+            self.print("Gowitness", f"Captured {screenshot_count.strip()} screenshots in {screenshots_dir}/")
+            self.print("Gowitness", f"Report saved to {self.dir_path}/gowitness_report.csv")
+        else:
+            self.print("Gowitness", "No screenshots captured - check if subdomains are accessible", Colors.WARNING)
+        
+        self.event("gowitness_completed")
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -1234,6 +1300,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='Enable GPT suggestions'
     )
     
+    parser.add_argument(
+        '--screenshots',
+        action='store_true',
+        help='Enable visual reconnaissance with gowitness screenshots'
+    )
+    
     return parser
 
 
@@ -1321,7 +1393,8 @@ def main():
         htb=args.htb,
         fuzz=args.fuzz,
         use_gpt=args.use_gpt,
-        skip_installers=args.skip_installers
+        skip_installers=args.skip_installers,
+        screenshots=args.screenshots
     )
     
     try:
@@ -1343,6 +1416,8 @@ def main():
         hax.naabu()
         hax.httpx()
         
+        # Visual reconnaissance
+        hax.gowitness()
         
         # Vulnerability scanning
         hax.ffuf()

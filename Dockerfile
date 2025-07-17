@@ -33,6 +33,7 @@ RUN go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
 RUN /home/builder/go/bin/pdtm -ia -bp /home/builder/go/bin
 RUN go install -v github.com/tomnomnom/unfurl@latest
 RUN go install -v github.com/ffuf/ffuf/v2@latest
+RUN go install -v github.com/sensepost/gowitness@latest
 
 # Update Nuclei templates and authenticate if the API key is provided.
 # This runs as the non-root builder user.
