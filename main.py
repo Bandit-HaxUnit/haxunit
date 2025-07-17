@@ -21,7 +21,6 @@ from os.path import exists
 from subprocess import PIPE, Popen
 from traceback import print_exc
 from urllib.parse import urlparse
-from json import dumps
 
 # Third-party imports
 import urllib3
@@ -685,7 +684,7 @@ class HaxUnit:
                     'https://host.docker.internal:3443/api/v1/target_groups',
                     headers=headers,
                     cookies=cookies,
-                    data=dumps({"name": self.site, "description": ""}),
+                    data=json.dumps({"name": self.site, "description": ""}),
                     verify=False
                 ).json()["group_id"]
 
@@ -712,7 +711,7 @@ class HaxUnit:
             if data:
 
                 response = post('https://host.docker.internal:3443/api/v1/targets/add', headers=headers, cookies=cookies,
-                                data=dumps(data), verify=False).json()
+                                data=json.dumps(data), verify=False).json()
 
                 for target in response["targets"]:
                     data = {
@@ -727,7 +726,7 @@ class HaxUnit:
                         "target_id": target["target_id"]
                     }
 
-                    post('https://host.docker.internal:3443/api/v1/scans', headers=headers, cookies=cookies, data=dumps(data),
+                    post('https://host.docker.internal:3443/api/v1/scans', headers=headers, cookies=cookies, data=json.dumps(data),
                          verify=False)
 
                 self.print("Acunetix", f"Scan(s) started!")
