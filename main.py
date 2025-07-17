@@ -1168,30 +1168,34 @@ class HaxUnit:
         # Run gowitness on active subdomains
         threads = "20" if not self.quick else "10"
         timeout = "15" if not self.quick else "10"
+        db_path = f"{self.dir_path}/gowitness.sqlite3"
         
         gowitness_cmd = (
             f"gowitness file "
             f"-f {self.dir_path}/all_subdomains_up.txt "
             f"-P {screenshots_dir}/ "
+            f"-D {db_path} "
             f"-t {timeout} "
             f"--threads {threads} "
             f"--log-level {'info' if self.verbose else 'fatal'} "
             f"--disable-logging-colors "
             f"--screenshot-format png "
-            f"--chrome-path /usr/bin/google-chrome "
             f"--user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'"
         )
         
         self.cmd(gowitness_cmd)
         
-        # Generate gowitness report
-        report_cmd = (
-            f"gowitness report export "
-            f"-f {screenshots_dir}/gowitness.sqlite3 "
-            f"--format csv "
-            f"> {self.dir_path}/gowitness_report.csv"
-        )
-        self.cmd(report_cmd)
+        # Generate gowitness report only if database exists
+        if self.cmd(f"test -f {db_path}", silent=True) == "":
+            report_cmd = (
+                f"gowitness report export "
+                f"-f {db_path} "
+                f"--format csv "
+                f"> {self.dir_path}/gowitness_report.csv"
+            )
+            self.cmd(report_cmd)
+        else:
+            self.print("Gowitness", "Database not found, skipping report generation", Colors.WARNING)
         
         # Count screenshots taken
         screenshot_count = self.cmd(f"ls {screenshots_dir}/*.png 2>/dev/null | wc -l", silent=True)
