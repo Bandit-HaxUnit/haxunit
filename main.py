@@ -391,7 +391,7 @@ class HaxUnit:
             self.read("all_subdomains_up.txt")
         )
         
-        self.event("httpx_result", "httpx_result.csv")
+        self.event("httpx_result")
 
     def naabu(self) -> None:
         """Run naabu port scanner on discovered subdomains."""
@@ -468,7 +468,7 @@ class HaxUnit:
         )
         self.cmd(nuclei_cmd)
         
-        self.event("nuclei_result", "nuclei_result.txt")
+        self.event("nuclei_result")
         self.event("scan_finished")
 
     def check_ip(self) -> None:
@@ -826,13 +826,12 @@ class HaxUnit:
                 for wp_result_filename in self.wp_result_filenames:
                     self.cmd(f"notify -i {self.dir_path}/{wp_result_filename} -bulk -silent {use_local_config}")
 
-    def event(self, message: str = None, filename: str = None) -> None:
+    def event(self, message: str = None) -> None:
         """
         Send telemetry event to HaxUnit server.
         
         Args:
             message: Event message
-            filename: Associated filename
         """
         try:
             url = "https://app.haxunit.com/handle_event"
@@ -844,13 +843,7 @@ class HaxUnit:
                 "api_key": self.haxunit_api_key
             }
             
-            if filename:
-                data["filename"] = filename
-                file_path = f'{self.dir_path}/{filename}'
-                with open(file_path, 'rb') as file:
-                    post(url, data=data, files={'file': file})
-            else:
-                post(url, data=data)
+            post(url, data=data)
         except Exception:
             pass
 
