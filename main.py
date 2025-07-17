@@ -391,7 +391,7 @@ class HaxUnit:
             self.read("all_subdomains_up.txt")
         )
         
-        self.event("httpx_result", "httpx_result.csv")
+        self.event("httpx_result")
 
     def naabu(self) -> None:
         """Run naabu port scanner on discovered subdomains."""
@@ -468,7 +468,7 @@ class HaxUnit:
         )
         self.cmd(nuclei_cmd)
         
-        self.event("nuclei_result", "nuclei_result.txt")
+        self.event("nuclei_result")
         self.event("scan_finished")
 
     def check_ip(self) -> None:
