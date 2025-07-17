@@ -124,6 +124,7 @@ class HaxUnit:
         self.wpscan_api_token = wpscan_api_token or getenv("WPSCAN_API_KEY")
         self.acunetix_api_key = getenv("ACUNETIX_API_KEY")
         self.haxunit_api_key = getenv("HAXUNIT_API_KEY", "")
+        self.pdcp_api_key = getenv("PDCP_API_KEY")
         
         # Acunetix configuration
         self.acunetix_threshold = 30
@@ -428,6 +429,27 @@ class HaxUnit:
         self.cmd(subfinder_cmd)
         
         self.ask_to_add(self.read("subfinder_subdomains.txt"))
+
+    def chaos(self) -> None:
+        """Run chaos-client to discover subdomains from Chaos database."""
+        if self.htb or self.is_ip_address(self.site):
+            return
+        
+        if not self.pdcp_api_key:
+            self.print("Chaos", "PDCP_API_KEY not found in environment, skipping", Colors.WARNING)
+            return
+        
+        self.print("Chaos", "Querying ProjectDiscovery Chaos database")
+        
+        chaos_cmd = (
+            f"chaos -d {self.site} "
+            f"-key {self.pdcp_api_key} "
+            f"{'-silent' if not self.verbose else ''} "
+            f"-o {self.dir_path}/chaos_subdomains.txt"
+        )
+        self.cmd(chaos_cmd)
+        
+        self.ask_to_add(self.read("chaos_subdomains.txt"))
 
     def nuclei(self) -> None:
         """Run nuclei vulnerability scanner on active subdomains."""
@@ -1354,6 +1376,7 @@ def main():
         # Subdomain discovery
         hax.dnsx_subdomains()
         hax.subfinder()
+        hax.chaos()
         hax.katana()
         hax.alterx()
         hax.subwiz()
