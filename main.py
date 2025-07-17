@@ -645,7 +645,7 @@ class HaxUnit:
                         cmd = (
                             f"dnsx -silent -d {subdomain_target} "
                             f"-w {wordlist} "
-                            f"-wd {self.site} "
+                            f"-wd {subdomain_target} -wd {self.site} "
                             f"-o {output_file} "
                             f"-r 8.8.8.8,1.1.1.1 "  # Multiple resolvers for reliability
                             f"-retry 2 -timeout 5"
