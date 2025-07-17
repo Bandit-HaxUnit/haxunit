@@ -579,45 +579,159 @@ class HaxUnit:
 
     def _recursive_dnsx_bruteforce(self) -> None:
         """Perform recursive subdomain bruteforce."""
+        import tempfile
+        import threading
+        from collections import defaultdict
+        
         self.print("DNSx", "Started multi-threaded recursive bruteforce")
-        all_found_subdomains = []
+        
+        # Configuration
+        max_iterations = 20
+        max_workers = min(10, (os.cpu_count() or 1) * 2)  # Adaptive thread count
+        min_new_domains = 5  # Stop if we find fewer than this many new domains
+        wordlist = "data/subdomains-1000.txt"
+        
+        # Track all discovered subdomains globally to avoid duplicates
+        all_discovered = set(self.all_subdomains)
+        iteration_results = defaultdict(set)
+        temp_files = []  # Track temp files for cleanup
+        
+        # Thread-safe lock for shared data structures
+        results_lock = threading.Lock()
         
         try:
-            for iteration in range(100):
-                print()
-                self.print("DNSx", f"Iteration: {iteration}")
-                
-                # Determine which file to read
-                if iteration == 0:
-                    file_to_read = "dnsx_result.txt"
-                else:
-                    file_to_read = f"dnsx_recursive_iter_{iteration - 1}_result.txt"
-                
-                self.print("DNSx", f"Reading file: {file_to_read}")
-                dnsx_result = self.read(file_to_read)
-                
-                if not dnsx_result:
+            # Start with initial results
+            initial_results = set(self.read("dnsx_result.txt"))
+            if not initial_results:
+                self.print("DNSx", "No initial results found, skipping recursive bruteforce")
+                return
+            
+            current_targets = initial_results.copy()
+            
+            for iteration in range(max_iterations):
+                if not current_targets:
+                    self.print("DNSx", f"No more targets to process after {iteration} iterations")
                     break
                 
-                self.print("DNSx", f"List of subdomains: {dnsx_result}")
-                all_found_subdomains.extend(dnsx_result)
+                self.print("DNSx", f"Iteration {iteration + 1}/{max_iterations} - Processing {len(current_targets)} targets")
                 
-                # Run bruteforce on each subdomain in parallel
-                def dnsx_brute(subdomain):
-                    output_file = f"{self.dir_path}/dnsx_recursive_iter_{iteration}_result.txt"
-                    self.cmd(
-                        f"dnsx -silent -d {subdomain} -wd {subdomain} "
-                        f"-w data/subdomains-1000.txt -wd {self.site} "
-                        f"-o {output_file} -r 8.8.8.8"
-                    )
+                # Create temporary files for this iteration
+                temp_dir = tempfile.mkdtemp(prefix=f"dnsx_iter_{iteration}_", dir=self.dir_path)
+                temp_files.append(temp_dir)
                 
-                with ThreadPoolExecutor(max_workers=5) as pool:
-                    pool.map(dnsx_brute, dnsx_result)
+                new_domains_found = set()
+                
+                def dnsx_brute_optimized(subdomain_target):
+                    """Bruteforce function with error handling."""
+                    try:
+                        # Create unique output file for each thread
+                        thread_id = threading.get_ident()
+                        output_file = os.path.join(temp_dir, f"result_{thread_id}_{subdomain_target.replace('.', '_')}.txt")
+                        
+                        # Build command
+                        cmd = (
+                            f"dnsx -silent -d {subdomain_target} "
+                            f"-w {wordlist} "
+                            f"-wd {subdomain_target} -wd {self.site} "
+                            f"-o {output_file} "
+                            f"-r 8.8.8.8,1.1.1.1 "  # Multiple resolvers for reliability
+                            f"-retry 2 -timeout 5"
+                        )
+                        
+                        # Execute command
+                        result = self.cmd(cmd, silent=True)
+                        
+                        # Read results if file exists
+                        if os.path.exists(output_file):
+                            with open(output_file, 'r') as f:
+                                found_domains = {line.strip() for line in f if line.strip()}
+                            
+                            # Thread-safe update of shared data
+                            with results_lock:
+                                # Filter out already known domains
+                                truly_new = found_domains - all_discovered
+                                if truly_new:
+                                    new_domains_found.update(truly_new)
+                                    all_discovered.update(truly_new)
+                                    iteration_results[iteration].update(truly_new)
+                        
+                    except Exception as e:
+                        if self.verbose:
+                            self.print("DNSx", f"Error processing {subdomain_target}: {str(e)}", Colors.WARNING)
+                
+                # Execute bruteforce in parallel with progress tracking
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all tasks
+                    futures = [executor.submit(dnsx_brute_optimized, target) for target in current_targets]
                     
+                    # Monitor progress
+                    completed = 0
+                    for future in futures:
+                        try:
+                            future.result(timeout=30)  # 30 second timeout per task
+                            completed += 1
+                            if completed % max(1, len(futures) // 10) == 0:  # Progress every 10%
+                                progress = (completed / len(futures)) * 100
+                                self.print("DNSx", f"Progress: {progress:.1f}% ({completed}/{len(futures)})")
+                        except Exception as e:
+                            if self.verbose:
+                                self.print("DNSx", f"Task failed: {str(e)}", Colors.WARNING)
+                
+                # Process results for this iteration
+                iteration_new_count = len(iteration_results[iteration])
+                self.print("DNSx", f"Iteration {iteration + 1} found {iteration_new_count} new domains")
+                
+                # Early termination if not finding enough new domains
+                if iteration_new_count < min_new_domains:
+                    self.print("DNSx", f"Found fewer than {min_new_domains} new domains, stopping recursion")
+                    break
+                
+                # Prepare targets for next iteration (only newly found domains)
+                current_targets = iteration_results[iteration].copy()
+                
+                # Adaptive thread count based on results
+                if iteration_new_count > 50:
+                    max_workers = min(max_workers + 2, 20)  # Increase threads if finding many results
+                elif iteration_new_count < 10:
+                    max_workers = max(max_workers - 1, 3)   # Decrease threads if finding few results
+            
+            # Consolidate all results
+            all_new_domains = set()
+            for iter_domains in iteration_results.values():
+                all_new_domains.update(iter_domains)
+            
+            # Write consolidated results to file
+            if all_new_domains:
+                results_file = f"{self.dir_path}/dnsx_recursive_all_results.txt"
+                with open(results_file, 'w') as f:
+                    for domain in sorted(all_new_domains):
+                        f.write(f"{domain}\n")
+                
+                self.print("DNSx", f"Recursive bruteforce completed: {len(all_new_domains)} unique new domains found")
+                self.print("DNSx", f"Results saved to: {results_file}")
+                
+                # Ask user to add the new domains
+                if all_new_domains:
+                    self.ask_to_add(list(all_new_domains))
+            else:
+                self.print("DNSx", "No new domains found during recursive bruteforce")
+                
         except KeyboardInterrupt:
-            self.print("DNSx", "Bruteforce stopped")
-        
-        self.ask_to_add(all_found_subdomains)
+            self.print("DNSx", "Recursive bruteforce interrupted by user")
+        except Exception as e:
+            self.print("DNSx", f"Error during recursive bruteforce: {str(e)}", Colors.FAIL)
+            if self.verbose:
+                import traceback
+                traceback.print_exc()
+        finally:
+            # Cleanup temporary files
+            for temp_dir in temp_files:
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except Exception as e:
+                    if self.verbose:
+                        self.print("DNSx", f"Warning: Could not clean up {temp_dir}: {str(e)}", Colors.WARNING)
 
     def dnsx_ips(self) -> None:
         """Get A records for all subdomains."""
