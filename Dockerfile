@@ -55,11 +55,14 @@ ENV PYTHONUNBUFFERED=1
 
 # Create a non-root user and group for the final application.
 # The user is named 'haxunit' for clarity.
-RUN addgroup --system haxunit && adduser --system --ingroup haxunit haxunit
+RUN addgroup --system haxunit && adduser --system --ingroup haxunit haxunit && \
+    adduser haxunit sudo && \
+    echo 'haxunit ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Install only essential runtime dependencies.
 # We are NOT installing docker.io. The container should use the host's Docker socket if needed.
 # --no-install-recommends prevents installation of unnecessary packages.
+# Added unbound for DNS caching
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         expect \
@@ -69,7 +72,11 @@ RUN apt-get update && \
         dos2unix \
         tmux \
         openvpn \
-        libpcap-dev && \
+        libpcap-dev \
+        unbound \
+        dnsutils \
+        wget \
+        net-tools && \
     # Clean up APT cache to reduce image size.
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -99,8 +106,12 @@ COPY --from=builder --chown=haxunit:haxunit /home/builder/.config/nuclei/ /home/
 COPY --chown=haxunit:haxunit . .
 
 # Convert main.py to Unix format and make it executable.
+# Also make DNS scripts executable.
 RUN dos2unix /app/main.py && \
-    chmod +x /app/main.py
+    chmod +x /app/main.py && \
+    chmod +x /app/start-unbound.sh && \
+    chmod +x /app/dns-monitor.sh && \
+    chmod +x /app/test-dns-cache.sh
 
 # Create a symlink in a user-owned bin directory for easy execution.
 RUN ln -s /app/main.py /home/haxunit/.local/bin/haxunit

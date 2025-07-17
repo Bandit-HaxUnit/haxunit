@@ -48,10 +48,12 @@ services:
     user: "1000:1000"
     # Drop all capabilities by default and only add what is absolutely necessary.
     # CAP_NET_ADMIN is still required for OpenVPN.
+    # CAP_NET_BIND_SERVICE is required for Unbound to bind to port 53
     cap_drop:
       - ALL
     cap_add:
       - NET_ADMIN
+      - NET_BIND_SERVICE
     # Required for OpenVPN.
     devices:
       - /dev/net/tun:/dev/net/tun
